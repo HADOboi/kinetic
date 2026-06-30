@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "KineticProfile": {
+      "title": "KineticProfile",
+      "description": "User profile with streak, progression levels, equipment, and logs",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "currentStreak": { "type": "number" },
+        "lastCompletedDate": { "type": "string" },
+        "currentPhase": { "type": "string", "enum": ["conditioning", "calibration", "infinite_overload"] },
+        "shields": {
+          "type": "object",
+          "properties": {
+            "bronze": { "type": "number" },
+            "silver": { "type": "number" },
+            "goldenUnlocked": { "type": "boolean" }
+          },
+          "required": ["bronze", "silver", "goldenUnlocked"]
+        },
+        "manualShieldCalendar": { "type": "object" },
+        "currentScheduleIndex": { "type": "number" },
+        "progressionLevels": { "type": "object" },
+        "equipmentInventory": {
+          "type": "object",
+          "properties": {
+            "hasPullupBar": { "type": "boolean" },
+            "hasDumbbells": { "type": "boolean" }
+          },
+          "required": ["hasPullupBar", "hasDumbbells"]
+        },
+        "weightLog": { "type": "array" },
+        "createdAt": { "type": "string" }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "photoURL",
+        "currentStreak",
+        "lastCompletedDate",
+        "currentPhase",
+        "shields",
+        "manualShieldCalendar",
+        "currentScheduleIndex",
+        "progressionLevels",
+        "equipmentInventory",
+        "weightLog",
+        "createdAt"
+      ]
+    },
+    "WorkoutLog": {
+      "title": "WorkoutLog",
+      "description": "Log entry for a completed workout session",
+      "type": "object",
+      "properties": {
+        "logId": { "type": "string" },
+        "userId": { "type": "string" },
+        "habitId": { "type": "string", "enum": ["workout"] },
+        "date": { "type": "string" },
+        "routineType": { "type": "string", "enum": ["push", "pull", "legs_core"] },
+        "durationMinutes": { "type": "number" },
+        "isDeloadSession": { "type": "boolean" },
+        "performanceFeedback": { "type": "string", "enum": ["struggling", "comfortable", "too_easy", ""] },
+        "exercisesLogged": { "type": "array" }
+      },
+      "required": [
+        "logId",
+        "userId",
+        "habitId",
+        "date",
+        "routineType",
+        "durationMinutes",
+        "isDeloadSession",
+        "performanceFeedback",
+        "exercisesLogged"
+      ]
+    }
+  },
+  "firestore": {
+    "/kineticProfiles/{userId}": {
+      "schema": { "$ref": "#/entities/KineticProfile" },
+      "description": "Stores profile settings, streak, levels, and equipment information for each user"
+    },
+    "/kineticProfiles/{userId}/workout_logs/{logId}": {
+      "schema": { "$ref": "#/entities/WorkoutLog" },
+      "description": "Stores individual completed workout log entries for each user"
+    },
+    "/workoutLogs/{logId}": {
+      "schema": { "$ref": "#/entities/WorkoutLog" },
+      "description": "Root-level collection to document completed logging sessions"
+    }
+  }
+}

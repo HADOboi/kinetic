@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // KineticProfile validation blueprint
+    function isValidProfile(data) {
+      return data.userId is string && data.userId.size() <= 128
+        && data.displayName is string && data.displayName.size() <= 150
+        && data.photoURL is string && data.photoURL.size() <= 2048
+        && data.currentStreak is int
+        && data.lastCompletedDate is string
+        && data.currentPhase in ['conditioning', 'calibration', 'infinite_overload']
+        && data.shields is map
+        && data.shields.bronze is int
+        && data.shields.silver is int
+        && data.shields.goldenUnlocked is bool
+        && data.manualShieldCalendar is map
+        && data.currentScheduleIndex is int
+        && data.progressionLevels is map
+        && data.equipmentInventory is map
+        && data.equipmentInventory.hasPullupBar is bool
+        && data.equipmentInventory.hasDumbbells is bool
+        && data.weightLog is list
+        && data.createdAt is string;
+    }
+
+    // WorkoutLog validation blueprint
+    function isValidWorkoutLog(data) {
+      return data.logId is string && data.logId.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.habitId == 'workout'
+        && data.date is string
+        && data.routineType in ['push', 'pull', 'legs_core']
+        && data.durationMinutes is int
+        && data.isDeloadSession is bool
+        && data.performanceFeedback in ['struggling', 'comfortable', 'too_easy', '']
+        && data.exercisesLogged is list;
+    }
+
+    // User profile endpoint
+    match /kineticProfiles/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) 
+        && isValidId(userId)
+        && isValidProfile(incoming());
+      
+      allow update: if isOwner(userId) 
+        && isValidProfile(incoming())
+        // Keep userId and createdAt immutable
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt;
+        
+      allow delete: if false; // Profiles shouldn't be deleted via client SDK
+
+      // Workout logs subcollection
+      match /workout_logs/{logId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        
+        allow create: if isOwner(userId)
+          && isValidId(logId)
+          && isValidWorkoutLog(incoming())
+          && incoming().userId == userId;
+          
+        allow update: if isOwner(userId)
+          && isValidWorkoutLog(incoming())
+          && incoming().userId == existing().userId
+          && incoming().logId == existing().logId;
+          
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Root-level workoutLogs collection (aligned with Chunk 3 specification)
+    match /workoutLogs/{logId} {
+      allow get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn()
+        && isValidWorkoutLog(incoming())
+        && incoming().userId == request.auth.uid;
+        
+      allow update: if isSignedIn()
+        && isValidWorkoutLog(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().userId == existing().userId
+        && incoming().logId == existing().logId;
+        
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+  }
+}
