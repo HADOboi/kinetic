@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { useAuth } from "../../context/AuthContext";
-import { useStreakEngine, getDaysBetweenDates } from "../../hooks/useStreakEngine";
+import { useStreakEngine, getDaysBetweenDates, reconstructProfile } from "../../hooks/useStreakEngine";
 import { saveProfile } from "../../core/firestore";
 import { WEEKLY_SCHEDULE } from "../../core/exerciseMatrix";
 import { KineticProfile, NodeState, ScheduleNodeType } from "../../core/types";
@@ -155,6 +155,7 @@ export default function RoadmapPage() {
   const { processMissedDays, completeDay, getFireState, applyAbsenceRegression } = useStreakEngine();
 
   const [animType, setAnimType]         = useState<StreakAnimationType>(null);
+  const [healing, setHealing]           = useState(true);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [pendingFeedbackProfile, setPendingFeedbackProfile] = useState<KineticProfile | null>(null);
 
@@ -236,54 +237,80 @@ export default function RoadmapPage() {
     if (!loading && !user) router.replace("/");
   }, [user, loading]);
 
-  // Process missed days on load
+  // Process missed days and self-heal on load
   useEffect(() => {
-    if (!profile) return;
-    let updated = processMissedDays(profile);
-    updated     = applyAbsenceRegression(updated);
+    if (!user || !profile) return;
 
-    // Self-healing: If yesterday was completed, the streak should be at least 1!
-    if (updated.lastCompletedDate) {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const daysSince = getDaysBetweenDates(today, updated.lastCompletedDate);
-      if (daysSince === 1 && updated.currentStreak === 0) {
-        updated = { ...updated, currentStreak: 1 };
-      }
-    }
-
-    // Detect streak break
-    if (updated.currentStreak === 0 && profile.currentStreak > 0) {
-      setAnimType("streak_break");
-    }
-
-    // Auto-complete rest days
-    const todayNode = WEEKLY_SCHEDULE[updated.currentScheduleIndex];
-    if (todayNode?.type === "rest") {
-      const today = format(new Date(), "yyyy-MM-dd");
-      if (updated.lastCompletedDate !== today) {
-        const before = updated.currentStreak;
-        updated = completeDay(updated);
-        updated = { ...updated, currentScheduleIndex: (updated.currentScheduleIndex + 1) % 7 };
-        
-        // Mark that yesterday was a rest day
-        updated.lastWasRestDay = true;
-
-        // Check if there is any milestone achievement to defer
-        const potentialAnim = resolveAchievementType(updated, before, profile);
-        if (potentialAnim && potentialAnim !== "daily_lit" && potentialAnim !== "daily_unfreeze") {
-          updated.deferredAnimation = potentialAnim;
+    async function healProfile() {
+      try {
+        let logs: any[] = [];
+        if (user.uid === "demo_athlete") {
+          const offlineLogsKey = `workout_logs_${user.uid}`;
+          const existingOffline = localStorage.getItem(offlineLogsKey);
+          if (existingOffline) {
+            logs = JSON.parse(existingOffline);
+          }
+        } else {
+          try {
+            const { collection, query, where, getDocs } = await import("firebase/firestore");
+            const { db } = await import("../../core/firebase");
+            const q = query(collection(db, "workoutLogs"), where("userId", "==", user.uid));
+            const snap = await getDocs(q);
+            logs = snap.docs.map(doc => doc.data());
+          } catch (e) {
+            console.warn("Firestore logs fetch failed, using local offline fallback:", e);
+            const offlineLogsKey = `workout_logs_${user.uid}`;
+            const existingOffline = localStorage.getItem(offlineLogsKey);
+            if (existingOffline) {
+              logs = JSON.parse(existingOffline);
+            }
+          }
         }
-        // No animation is triggered on rest days!
+
+        let updated = reconstructProfile(profile, logs);
+        updated = applyAbsenceRegression(updated);
+
+        // Detect streak break
+        if (profile.currentStreak > 0 && updated.currentStreak === 0) {
+          setAnimType("streak_break");
+        }
+
+        // Auto-complete rest days
+        const todayNode = WEEKLY_SCHEDULE[updated.currentScheduleIndex];
+        if (todayNode?.type === "rest") {
+          const today = format(new Date(), "yyyy-MM-dd");
+          if (updated.lastCompletedDate !== today) {
+            const before = updated.currentStreak;
+            updated = completeDay(updated);
+            updated = { ...updated, currentScheduleIndex: (updated.currentScheduleIndex + 1) % 7 };
+            
+            // Mark that yesterday was a rest day
+            updated.lastWasRestDay = true;
+
+            // Check if there is any milestone achievement to defer
+            const potentialAnim = resolveAchievementType(updated, before, profile);
+            if (potentialAnim && potentialAnim !== "daily_lit" && potentialAnim !== "daily_unfreeze") {
+              updated.deferredAnimation = potentialAnim;
+            }
+            // No animation is triggered on rest days!
+          }
+        }
+
+        if (JSON.stringify(updated) !== JSON.stringify(profile)) {
+          setProfile(updated);
+          await saveProfile(updated);
+        }
+      } catch (err) {
+        console.error("Profile self-healing failed:", err);
+      } finally {
+        setHealing(false);
       }
     }
 
-    if (JSON.stringify(updated) !== JSON.stringify(profile)) {
-      setProfile(updated);
-      saveProfile(updated).catch(console.error);
-    }
-  }, [profile?.userId]);
+    healProfile();
+  }, [user?.uid]);
 
-  if (loading || !profile) {
+  if (loading || healing || !profile) {
     return (
       <div className="min-h-screen bg-[#0B0B0F] flex items-center justify-center">
         <div className="kinetic-pulse">

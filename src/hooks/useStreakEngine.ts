@@ -128,7 +128,10 @@ export function useStreakEngine() {
           absorbed = true;
         }
         
-        if (!absorbed) {
+        if (absorbed) {
+          p.lastCompletedDate = checkDate;
+          p.currentScheduleIndex = (scheduleIndex + 1) % 7;
+        } else {
           // No shields left — break streak!
           p.currentStreak = 0;
           p.lastCompletedDate = "";
@@ -258,5 +261,152 @@ export function useStreakEngine() {
     return p;
   }, []);
 
-  return { processMissedDays, completeDay, getFireState, applyAbsenceRegression };
+  return { processMissedDays, completeDay, getFireState, applyAbsenceRegression, reconstructProfile };
+}
+
+/**
+ * Reconstructs the profile's currentStreak, lastCompletedDate, currentScheduleIndex,
+ * and shields from the actual history of completed workout logs.
+ * This is a highly robust self-healing mechanism that recovers from any corrupted state.
+ */
+export function reconstructProfile(profile: KineticProfile, logs: { date: string }[]): KineticProfile {
+  const logDates = Array.from(new Set(logs.map((l) => l.date)))
+    .filter(Boolean)
+    .sort();
+
+  if (logDates.length === 0) {
+    return {
+      ...profile,
+      currentStreak: 0,
+      lastCompletedDate: "",
+      currentScheduleIndex: 0,
+      shields: { bronze: 0, silver: 0, goldenUnlocked: false },
+      manualShieldCalendar: {},
+    };
+  }
+
+  let p: KineticProfile = {
+    ...profile,
+    currentStreak: 0,
+    lastCompletedDate: "",
+    currentScheduleIndex: 0,
+    shields: { bronze: 0, silver: 0, goldenUnlocked: false },
+    manualShieldCalendar: {},
+  };
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const firstLogDate = logDates[0];
+
+  const [startY, startM, startD] = firstLogDate.split("-").map(Number);
+  const startDate = new Date(startY, startM - 1, startD);
+
+  const [todayY, todayM, todayD] = todayStr.split("-").map(Number);
+  const endDate = new Date(todayY, todayM - 1, todayD);
+
+  let currentDate = new Date(startDate);
+  let silverProtectedWorkoutDaysLeft = 0;
+  const loggedDatesSet = new Set(logDates);
+
+  while (currentDate <= endDate) {
+    const checkDate = format(currentDate, "yyyy-MM-dd");
+    const isToday = checkDate === todayStr;
+    const isLogged = loggedDatesSet.has(checkDate);
+
+    if (isLogged) {
+      p.currentStreak += 1;
+      p.lastCompletedDate = checkDate;
+      p.currentScheduleIndex = (p.currentScheduleIndex + 1) % 7;
+      silverProtectedWorkoutDaysLeft = 0;
+
+      // Reward shields on completing a day
+      if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
+        p.shields.bronze += 1;
+        if (p.shields.bronze >= 3) {
+          p.shields.bronze = 1;
+          if (p.shields.silver < 5) p.shields.silver += 1;
+        }
+      }
+      if (p.currentStreak % 28 === 0 && p.currentStreak > 0) {
+        if (p.shields.silver < 5) p.shields.silver += 1;
+      }
+      if (p.currentStreak >= 365 && !p.shields.goldenUnlocked) {
+        p.shields.goldenUnlocked = true;
+      }
+    } else {
+      // If today is not completed yet, do NOT count it as missed!
+      if (isToday) {
+        break;
+      }
+
+      const scheduleIndex = p.currentScheduleIndex ?? 0;
+      const node = WEEKLY_SCHEDULE[scheduleIndex];
+
+      if (node?.type === "rest") {
+        // Auto-complete rest day
+        p.currentStreak += 1;
+        p.lastCompletedDate = checkDate;
+        p.currentScheduleIndex = (scheduleIndex + 1) % 7;
+        p.lastWasRestDay = true;
+
+        if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
+          p.shields.bronze += 1;
+          if (p.shields.bronze >= 3) {
+            p.shields.bronze = 1;
+            if (p.shields.silver < 5) p.shields.silver += 1;
+          }
+        }
+        if (p.currentStreak % 28 === 0 && p.currentStreak > 0) {
+          if (p.shields.silver < 5) p.shields.silver += 1;
+        }
+        if (p.currentStreak >= 365 && !p.shields.goldenUnlocked) {
+          p.shields.goldenUnlocked = true;
+        }
+      } else {
+        // Workout day missed!
+        let absorbed = false;
+
+        if (silverProtectedWorkoutDaysLeft > 0) {
+          silverProtectedWorkoutDaysLeft -= 1;
+          absorbed = true;
+        }
+
+        if (!absorbed && p.manualShieldCalendar && p.manualShieldCalendar[checkDate]) {
+          const type = p.manualShieldCalendar[checkDate];
+          if (type === "bronze" && p.shields.bronze > 0) {
+            p.shields.bronze -= 1;
+            absorbed = true;
+            delete p.manualShieldCalendar[checkDate];
+          } else if (type === "silver" && p.shields.silver > 0) {
+            p.shields.silver -= 1;
+            silverProtectedWorkoutDaysLeft = 2;
+            absorbed = true;
+            delete p.manualShieldCalendar[checkDate];
+          }
+        }
+
+        if (!absorbed && p.shields.bronze > 0) {
+          p.shields.bronze -= 1;
+          absorbed = true;
+        }
+
+        if (!absorbed && p.shields.silver > 0) {
+          p.shields.silver -= 1;
+          silverProtectedWorkoutDaysLeft = 2;
+          absorbed = true;
+        }
+
+        if (absorbed) {
+          p.lastCompletedDate = checkDate;
+          p.currentScheduleIndex = (scheduleIndex + 1) % 7;
+        } else {
+          p.currentStreak = 0;
+          p.lastCompletedDate = "";
+        }
+      }
+    }
+
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return p;
 }
