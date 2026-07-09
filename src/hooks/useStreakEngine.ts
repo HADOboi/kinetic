@@ -31,8 +31,10 @@ export function useStreakEngine() {
   /**
    * Called on login / app open.
    * Checks missed days since lastCompletedDate.
-   * Burns shields or breaks streak accordingly.
-   * Returns updated profile (caller must setState + saveProfile).
+   * Steps through each day from lastCompletedDate + 1 up to today - 1.
+   * Rest days are auto-completed (increasing streak and schedule index).
+   * Workout days are absorbed by shields, or break the streak.
+   * Returns updated profile.
    */
   const processMissedDays = useCallback((profile: KineticProfile): KineticProfile => {
     if (!profile.lastCompletedDate) return profile;
@@ -43,52 +45,98 @@ export function useStreakEngine() {
 
     if (missedDays <= 0) return profile;
 
-    let p = { ...profile, shields: { ...profile.shields } };
+    let p = {
+      ...profile,
+      shields: { ...profile.shields },
+      manualShieldCalendar: profile.manualShieldCalendar ? { ...profile.manualShieldCalendar } : {},
+    };
 
-    // Check manual shield calendar first
-    let daysToAbsorb = missedDays;
-    let manualCal = p.manualShieldCalendar ? { ...p.manualShieldCalendar } : {};
+    const [y, m, d] = profile.lastCompletedDate.split("-").map(Number);
+    let silverProtectedWorkoutDaysLeft = 0;
+
     for (let i = 1; i <= missedDays; i++) {
-      const [y, m, d] = profile.lastCompletedDate.split("-").map(Number);
       const nextDate = new Date(y, m - 1, d + i);
       const checkDate = format(nextDate, "yyyy-MM-dd");
       
-      if (manualCal[checkDate]) {
-        const type = manualCal[checkDate];
-        if (type === "bronze" && p.shields.bronze > 0) {
+      const scheduleIndex = p.currentScheduleIndex ?? 0;
+      const node = WEEKLY_SCHEDULE[scheduleIndex];
+      
+      if (node?.type === "rest") {
+        // It's a rest day! Auto-complete it
+        p.currentStreak += 1;
+        p.lastCompletedDate = checkDate;
+        p.currentScheduleIndex = (scheduleIndex + 1) % 7;
+        p.lastWasRestDay = true;
+
+        // Reward logic for reaching milestones on rest day completions
+        if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
+          p.shields.bronze += 1;
+          if (p.shields.bronze >= 3) {
+            p.shields.bronze = 1;
+            if (p.shields.silver < 5) {
+              p.shields.silver += 1;
+            } else {
+              (p as any)._silverCapTriggered = true;
+            }
+          }
+        }
+        if (p.currentStreak % 28 === 0 && p.currentStreak > 0) {
+          if (p.shields.silver < 5) {
+            p.shields.silver += 1;
+          } else {
+            (p as any)._silverCapTriggered = true;
+          }
+        }
+        if (p.currentStreak >= 365 && !p.shields.goldenUnlocked) {
+          p.shields.goldenUnlocked = true;
+        }
+      } else {
+        // It's a workout day!
+        let absorbed = false;
+        
+        // 1. Check if we are still protected by a previously burned silver shield
+        if (silverProtectedWorkoutDaysLeft > 0) {
+          silverProtectedWorkoutDaysLeft -= 1;
+          absorbed = true;
+        }
+        
+        // 2. Check manual shield calendar
+        if (!absorbed && p.manualShieldCalendar && p.manualShieldCalendar[checkDate]) {
+          const type = p.manualShieldCalendar[checkDate];
+          if (type === "bronze" && p.shields.bronze > 0) {
+            p.shields.bronze -= 1;
+            absorbed = true;
+            delete p.manualShieldCalendar[checkDate];
+          } else if (type === "silver" && p.shields.silver > 0) {
+            p.shields.silver -= 1;
+            silverProtectedWorkoutDaysLeft = 2; // absorbs this day + 2 more workout days
+            absorbed = true;
+            delete p.manualShieldCalendar[checkDate];
+          }
+        }
+        
+        // 3. Auto-burn bronze shield
+        if (!absorbed && p.shields.bronze > 0) {
           p.shields.bronze -= 1;
-          daysToAbsorb -= 1;
-          delete manualCal[checkDate];
-        } else if (type === "silver" && p.shields.silver > 0) {
+          absorbed = true;
+        }
+        
+        // 4. Auto-burn silver shield
+        if (!absorbed && p.shields.silver > 0) {
           p.shields.silver -= 1;
-          daysToAbsorb = Math.max(0, daysToAbsorb - 3);
-          delete manualCal[checkDate];
+          silverProtectedWorkoutDaysLeft = 2; // absorbs this day + 2 more workout days
+          absorbed = true;
+        }
+        
+        if (!absorbed) {
+          // No shields left — break streak!
+          p.currentStreak = 0;
+          p.lastCompletedDate = "";
+          break; // Stop simulation as streak is already broken
         }
       }
     }
-    p.manualShieldCalendar = manualCal;
 
-    if (daysToAbsorb <= 0) return p;
-
-    // Auto-burn Bronze (1 per missed day)
-    while (daysToAbsorb > 0 && p.shields.bronze > 0) {
-      p.shields.bronze -= 1;
-      daysToAbsorb -= 1;
-    }
-
-    if (daysToAbsorb <= 0) return p;
-
-    // Auto-burn Silver (1 silver = up to 3 days)
-    while (daysToAbsorb > 0 && p.shields.silver > 0) {
-      p.shields.silver -= 1;
-      daysToAbsorb = Math.max(0, daysToAbsorb - 3);
-    }
-
-    if (daysToAbsorb <= 0) return p;
-
-    // No shields left — break streak
-    p.currentStreak = 0;
-    p.lastCompletedDate = "";
     return p;
   }, []);
 
