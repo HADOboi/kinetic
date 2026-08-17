@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { playSound } from "../../core/audio";
 
 interface RestTimerProps {
   durationSeconds?: number; // default 90
@@ -75,14 +76,3 @@ export default function RestTimer({ durationSeconds = 90, onComplete, onSkip }: 
   );
 }
 
-// ── Sound hook placeholder ──
-function playSound(id: string) {
-  const SOUNDS: Record<string, string> = {
-    timer_bell: "/audio/sfx/timer_bell.mp3",
-  };
-  try {
-    const audio = new Audio(SOUNDS[id]);
-    audio.volume = 0.6;
-    audio.play().catch(() => {});
-  } catch {}
-}
