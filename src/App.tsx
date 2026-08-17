@@ -12,6 +12,7 @@ import KineticLogo from "./components/KineticLogo";
 import RoadmapPage from "./app/roadmap/page.tsx";
 import DashboardPage from "./app/dashboard/page.tsx";
 import WorkoutPage from "./app/workout/page.tsx";
+import NotFoundPage from "./app/not-found/NotFoundPage.tsx";
 import { WEEKLY_SCHEDULE } from "./core/exerciseMatrix";
 import { RoutineType } from "./core/types";
 
@@ -135,12 +136,12 @@ function AppContent() {
 
   const cleanPath = currentPath.split("?")[0].split("#")[0];
 
-  if (cleanPath === "/dashboard") {
-    return <DashboardPage />;
-  }
-
   if (cleanPath === "/workout") {
     return <WorkoutPage />;
+  }
+
+  if (cleanPath !== "/roadmap" && cleanPath !== "/dashboard") {
+    return <NotFoundPage onNavigate={navigate} />;
   }
 
   return (
@@ -155,12 +156,7 @@ function AppContent() {
       />
       
       <main className="flex-1 overflow-y-auto pt-14 pb-16 md:pt-6 md:pb-6">
-        {cleanPath === "/roadmap" && <RoadmapPage />}
-        {cleanPath !== "/roadmap" && cleanPath !== "/dashboard" && cleanPath !== "/workout" && (
-          <div className="p-8 text-center text-text-secondary font-sans text-sm mt-10">
-            Route Not Found
-          </div>
-        )}
+        {cleanPath === "/dashboard" ? <DashboardPage /> : <RoadmapPage />}
       </main>
 
       <BottomNav currentPath={currentPath} onNavigate={navigate} />

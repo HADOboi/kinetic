@@ -26,6 +26,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Safety fallback: Never allow the app to be stuck in loading state indefinitely
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 4000);
+
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
@@ -43,10 +48,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.error("Auth status sync failed:", err);
       } finally {
+        clearTimeout(timeout);
         setLoading(false);
       }
     });
-    return unsub;
+
+    return () => {
+      clearTimeout(timeout);
+      unsub();
+    };
   }, []);
 
   const signOut = async () => {

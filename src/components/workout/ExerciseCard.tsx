@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, Pause, Play, RotateCcw, X } from "lucide-react";
 import { ExerciseDefinition } from "../../core/types";
+import { playSound } from "../../core/audio";
 import RestTimer from "./RestTimer";
 import TimedCountdown from "./TimedCountdown";
 
@@ -31,10 +32,12 @@ export default function ExerciseCard({
   const [sets, setSets] = useState<{ done: boolean; value: number }[]>(
     Array.from({ length: exercise.sets }, () => ({ done: false, value: 0 }))
   );
-  const [showRest, setShowRest]       = useState(false);
-  const [showCountdown, setShowCountdown] = useState(false);
-  const [timerActive, setTimerActive] = useState(false);
-  const [timerElapsed, setTimerElapsed] = useState(0);
+  const [showRest, setShowRest]             = useState(false);
+  const [showCountdown, setShowCountdown]   = useState(false);
+  const [timerActive, setTimerActive]       = useState(false);
+  const [timerPaused, setTimerPaused]       = useState(false);
+  const [timerElapsed, setTimerElapsed]     = useState(0);
+  const [showLargeTimer, setShowLargeTimer] = useState(false);
   const [calibrationInput, setCalibrationInput] = useState("");
 
   const firstUndoneIndex = sets.findIndex((s) => !s.done);
@@ -61,15 +64,19 @@ export default function ExerciseCard({
 
   const onCountdownGo = useCallback(() => {
     setShowCountdown(false);
+    setShowLargeTimer(true);
     setTimerActive(true);
+    setTimerPaused(false);
     setTimerElapsed(0);
   }, []);
 
   useEffect(() => {
-    if (!timerActive) return;
+    if (!timerActive || timerPaused) return;
 
     if (timerElapsed >= workingTarget) {
       setTimerActive(false);
+      setShowLargeTimer(false);
+      playSound("timer_bell");
       markSetDoneValue(workingTarget);
       return;
     }
@@ -79,7 +86,7 @@ export default function ExerciseCard({
     }, 1000);
 
     return () => clearTimeout(t);
-  }, [timerActive, timerElapsed, workingTarget, markSetDoneValue]);
+  }, [timerActive, timerPaused, timerElapsed, workingTarget, markSetDoneValue]);
 
   const handleRepsDone = useCallback(() => {
     markSetDoneValue(workingTarget);
@@ -99,23 +106,88 @@ export default function ExerciseCard({
         {showCountdown && <TimedCountdown onGo={onCountdownGo} />}
       </AnimatePresence>
 
+      {/* Large Timer Popout Modal */}
+      <AnimatePresence>
+        {showLargeTimer && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
+          >
+            <div className="w-full max-w-sm bg-[#121218] border border-indigo-500/40 rounded-3xl p-8 flex flex-col items-center gap-6 shadow-[0_0_50px_rgba(79,70,229,0.3)]">
+              <div className="flex justify-between items-center w-full border-b border-[#2D2D3F] pb-3">
+                <span className="text-xs font-mono font-bold text-indigo-400 uppercase tracking-wider">
+                  SET #{currentSet + 1} TIMER
+                </span>
+                <button
+                  onClick={() => {
+                    setTimerActive(false);
+                    setShowLargeTimer(false);
+                  }}
+                  className="p-1 rounded-full text-text-secondary hover:text-white cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div>
+                <p className="text-xs text-text-secondary font-semibold uppercase tracking-wider mb-1">
+                  {exercise.name}
+                </p>
+                <div className="text-6xl md:text-7xl font-mono font-black text-white tracking-widest my-2">
+                  {timerElapsed}s
+                  <span className="text-xl font-normal text-text-tertiary"> / {workingTarget}s</span>
+                </div>
+              </div>
+
+              {/* Timer Progress Bar */}
+              <div className="w-full bg-[#1A1A26] h-3 rounded-full overflow-hidden border border-[#2D2D3F]">
+                <div
+                  className="bg-indigo-500 h-full transition-all duration-300 rounded-full"
+                  style={{ width: `${Math.min(100, (timerElapsed / workingTarget) * 100)}%` }}
+                />
+              </div>
+
+              {/* Control Buttons */}
+              <div className="flex items-center gap-4 w-full justify-center mt-2">
+                <button
+                  onClick={() => setTimerPaused(!timerPaused)}
+                  className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-lg"
+                >
+                  {timerPaused ? <Play size={16} /> : <Pause size={16} />}
+                  {timerPaused ? "Resume" : "Pause"}
+                </button>
+                <button
+                  onClick={() => setTimerElapsed(0)}
+                  className="p-3 rounded-2xl bg-[#1A1A26] border border-[#2D2D3F] text-text-secondary hover:text-white cursor-pointer"
+                  title="Reset Timer"
+                >
+                  <RotateCcw size={16} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Exercise header */}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-[#646473] font-mono uppercase tracking-wider">
+        <span className="text-xs font-mono font-bold text-[#A0A0AB] uppercase tracking-wider">
           Exercise {exerciseIndex + 1} of {totalExercises}
         </span>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+        <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">
           {phaseLabel}
         </span>
       </div>
 
-      <h2 className="text-lg font-black text-white leading-tight uppercase tracking-wide">{exercise.name}</h2>
+      <h2 className="text-xl font-black text-white leading-tight uppercase tracking-wide">{exercise.name}</h2>
 
       {/* Calibration mode */}
       {isCalibrationPhase ? (
         <div className="bg-[#0C0C12] border border-amber-500/20 rounded-2xl p-4 flex flex-col gap-3">
-          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Calibration Test</p>
-          <p className="text-xs text-[#A3A3B3]">
+          <p className="text-xs text-amber-400 font-bold uppercase tracking-wider">Calibration Test</p>
+          <p className="text-xs text-white leading-relaxed">
             Perform exactly 1 set to technical failure. Enter your max clean{" "}
             {exercise.trackingType === "time" ? "seconds" : "reps"}:
           </p>
@@ -124,7 +196,7 @@ export default function ExerciseCard({
             min="1"
             value={calibrationInput}
             onChange={(e) => setCalibrationInput(e.target.value)}
-            className="bg-[#040406] border border-[#1A1A26] rounded-xl px-4 py-2.5 text-white text-xl font-bold text-center focus:border-indigo-500 focus:outline-none w-full"
+            className="bg-[#040406] border border-[#2D2D3F] rounded-xl px-4 py-2.5 text-white text-xl font-bold text-center focus:border-indigo-500 focus:outline-none w-full"
             placeholder="0"
           />
           <button
@@ -140,7 +212,7 @@ export default function ExerciseCard({
           
           <button
             onClick={onExit}
-            className="w-full text-center py-1 text-xs text-[#646473] hover:text-red-400 transition-colors cursor-pointer"
+            className="w-full text-center py-1 text-xs text-[#A0A0AB] hover:text-red-400 transition-colors cursor-pointer font-semibold"
           >
             Cancel & Exit
           </button>
@@ -149,8 +221,8 @@ export default function ExerciseCard({
         <>
           {/* Dual Column Header Section (SVG on Left, Target Volume on Right) */}
           <div className="grid grid-cols-12 gap-3 items-stretch">
-            {/* SVG Illustration Frame (Bigger focus on Art) */}
-            <div className="col-span-7 h-24 bg-[#0C0C12] border border-[#1A1A26] rounded-2xl flex items-center justify-center overflow-hidden relative">
+            {/* SVG Illustration Frame */}
+            <div className="col-span-7 h-28 bg-[#0C0C12] border border-[#2D2D3F] rounded-2xl flex items-center justify-center overflow-hidden relative">
               <img
                 src={svgPath}
                 alt={exercise.name}
@@ -162,24 +234,24 @@ export default function ExerciseCard({
                 }}
               />
               <div className="hidden flex-col items-center justify-center w-full h-full p-2 text-center">
-                <div className="w-full h-full absolute inset-0 opacity-5"
+                <div className="w-full h-full absolute inset-0 opacity-10"
                   style={{ backgroundImage: "radial-gradient(#4F46E5 1px, transparent 1px)", backgroundSize: "12px 12px" }}
                 />
-                <span className="text-[#4B5563] text-[8px] font-mono leading-none">LINE ART</span>
+                <span className="text-[#A0A0AB] text-[10px] font-mono leading-none font-bold">KINETIC ART</span>
               </div>
             </div>
 
-            {/* Target Volume Card (Slimmer and cleaner) */}
-            <div className="col-span-5 bg-[#0C0C12] border border-[#1A1A26] rounded-2xl px-3 py-2 flex flex-col justify-center text-left">
-              <p className="text-[9px] text-[#646473] font-mono uppercase tracking-wider mb-0.5">TARGET</p>
-              <p className="text-sm font-black text-indigo-400 leading-tight">
+            {/* Target Volume Card */}
+            <div className="col-span-5 bg-[#0C0C12] border border-[#2D2D3F] rounded-2xl px-3 py-2 flex flex-col justify-center text-left">
+              <p className="text-[10px] text-[#A0A0AB] font-mono uppercase tracking-wider mb-0.5 font-bold">TARGET</p>
+              <p className="text-base font-black text-indigo-400 leading-tight">
                 {exercise.sets} × {exercise.trackingType === "time" ? `${workingTarget}s` : `${workingTarget}`}
               </p>
-              <p className="text-[9px] text-text-secondary mt-0.5 font-medium leading-none">
+              <p className="text-[10px] text-white mt-0.5 font-bold leading-none">
                 {exercise.trackingType === "time" ? "seconds" : "reps"}
               </p>
               {exercise.isAccumulationMode && (
-                <p className="text-[8px] text-amber-400 mt-1 font-mono leading-none">
+                <p className="text-[9px] text-amber-400 mt-1 font-mono font-bold leading-none">
                   ACCUMULATE
                 </p>
               )}
@@ -198,20 +270,20 @@ export default function ExerciseCard({
                   key={i}
                   className={`flex flex-col justify-between p-3 rounded-2xl border transition-all h-20 ${
                     isSetDone
-                      ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400"
+                      ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
                       : isCurrent
-                      ? "bg-indigo-500/5 border-indigo-500/40 text-white shadow-[0_0_12px_rgba(99,102,241,0.06)]"
-                      : "bg-[#040406]/30 border-[#1A1A26] text-[#646473] opacity-30"
+                      ? "bg-indigo-500/10 border-indigo-500/60 text-white shadow-[0_0_12px_rgba(99,102,241,0.2)]"
+                      : "bg-[#040406]/50 border-[#2D2D3F] text-[#A0A0AB] opacity-50"
                   }`}
                   initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: isFuture ? 0.35 : 1, scale: 1 }}
+                  animate={{ opacity: isFuture ? 0.5 : 1, scale: 1 }}
                   transition={{ delay: i * 0.03 }}
                 >
                   <div className="flex justify-between items-center w-full">
-                    <span className="text-[9px] font-mono tracking-wider text-text-tertiary">SET #{i + 1}</span>
+                    <span className="text-[10px] font-mono font-bold tracking-wider text-white">SET #{i + 1}</span>
                     {isSetDone && (
-                      <span className="w-4 h-4 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-                        <Check size={8} strokeWidth={3} className="text-emerald-400" />
+                      <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center">
+                        <Check size={10} strokeWidth={3} className="text-emerald-400" />
                       </span>
                     )}
                   </div>
@@ -223,28 +295,22 @@ export default function ExerciseCard({
                       </span>
                     ) : isCurrent ? (
                       exercise.trackingType === "time" ? (
-                        timerActive ? (
-                          <span className="text-sm font-mono font-black text-indigo-400 animate-pulse">
-                            {timerElapsed}s / {workingTarget}s
-                          </span>
-                        ) : (
-                          <button
-                            onClick={startTimedExercise}
-                            className="w-full py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
-                          >
-                            START
-                          </button>
-                        )
+                        <button
+                          onClick={startTimedExercise}
+                          className="w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
+                        >
+                          START TIMER
+                        </button>
                       ) : (
                         <button
                           onClick={handleRepsDone}
-                          className="w-full py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                          className="w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
                         >
                           DONE
                         </button>
                       )
                     ) : (
-                      <span className="text-xs font-mono text-text-tertiary">
+                      <span className="text-xs font-mono font-bold text-white">
                         {workingTarget} {exercise.trackingType === "time" ? "sec" : "reps"}
                       </span>
                     )}
@@ -279,7 +345,7 @@ export default function ExerciseCard({
 
           <button
             onClick={onExit}
-            className="w-full text-center py-2 text-[10px] text-[#646473] hover:text-red-400 transition-colors cursor-pointer mt-1 uppercase tracking-wider font-semibold"
+            className="w-full text-center py-2 text-xs text-[#A0A0AB] hover:text-red-400 transition-colors cursor-pointer mt-1 uppercase tracking-wider font-semibold"
           >
             Abort Session
           </button>

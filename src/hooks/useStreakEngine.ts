@@ -72,7 +72,7 @@ export function useStreakEngine() {
         if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
           p.shields.bronze += 1;
           if (p.shields.bronze >= 3) {
-            p.shields.bronze = 1;
+            p.shields.bronze = 0;
             if (p.shields.silver < 5) {
               p.shields.silver += 1;
             } else {
@@ -80,7 +80,7 @@ export function useStreakEngine() {
             }
           }
         }
-        if (p.currentStreak % 28 === 0 && p.currentStreak > 0) {
+        if (p.currentStreak % 30 === 0 && p.currentStreak > 0) {
           if (p.shields.silver < 5) {
             p.shields.silver += 1;
           } else {
@@ -115,10 +115,13 @@ export function useStreakEngine() {
           }
         }
         
+        let usedShieldType: "bronze" | "silver" | "golden" | null = null;
+
         // 3. Auto-burn bronze shield
         if (!absorbed && p.shields.bronze > 0) {
           p.shields.bronze -= 1;
           absorbed = true;
+          usedShieldType = "bronze";
         }
         
         // 4. Auto-burn silver shield
@@ -126,11 +129,25 @@ export function useStreakEngine() {
           p.shields.silver -= 1;
           silverProtectedWorkoutDaysLeft = 2; // absorbs this day + 2 more workout days
           absorbed = true;
+          usedShieldType = "silver";
+        }
+
+        // 5. Golden shield check if unlocked
+        if (!absorbed && p.shields.goldenUnlocked) {
+          absorbed = true;
+          usedShieldType = "golden";
         }
         
         if (absorbed) {
           p.lastCompletedDate = checkDate;
           p.currentScheduleIndex = (scheduleIndex + 1) % 7;
+          if (usedShieldType) {
+            p.manualShieldCalendar[checkDate] = usedShieldType;
+            p.lastShieldUsedNotification = {
+              date: checkDate,
+              shieldType: usedShieldType,
+            };
+          }
         } else {
           // No shields left — break streak!
           p.currentStreak = 0;
@@ -162,7 +179,7 @@ export function useStreakEngine() {
     if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
       p.shields.bronze += 1;
       if (p.shields.bronze >= 3) {
-        p.shields.bronze = 1;
+        p.shields.bronze = 0;
         if (p.shields.silver < 5) {
           p.shields.silver += 1;
         } else {
@@ -171,8 +188,8 @@ export function useStreakEngine() {
       }
     }
 
-    // Silver every 28 days
-    if (p.currentStreak % 28 === 0 && p.currentStreak > 0) {
+    // Silver every 30 days
+    if (p.currentStreak % 30 === 0 && p.currentStreak > 0) {
       if (p.shields.silver < 5) {
         p.shields.silver += 1;
       } else {
@@ -322,11 +339,11 @@ export function reconstructProfile(profile: KineticProfile, logs: { date: string
       if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
         p.shields.bronze += 1;
         if (p.shields.bronze >= 3) {
-          p.shields.bronze = 1;
+          p.shields.bronze = 0;
           if (p.shields.silver < 5) p.shields.silver += 1;
         }
       }
-      if (p.currentStreak % 28 === 0 && p.currentStreak > 0) {
+      if (p.currentStreak % 30 === 0 && p.currentStreak > 0) {
         if (p.shields.silver < 5) p.shields.silver += 1;
       }
       if (p.currentStreak >= 365 && !p.shields.goldenUnlocked) {
@@ -351,11 +368,11 @@ export function reconstructProfile(profile: KineticProfile, logs: { date: string
         if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
           p.shields.bronze += 1;
           if (p.shields.bronze >= 3) {
-            p.shields.bronze = 1;
+            p.shields.bronze = 0;
             if (p.shields.silver < 5) p.shields.silver += 1;
           }
         }
-        if (p.currentStreak % 28 === 0 && p.currentStreak > 0) {
+        if (p.currentStreak % 30 === 0 && p.currentStreak > 0) {
           if (p.shields.silver < 5) p.shields.silver += 1;
         }
         if (p.currentStreak >= 365 && !p.shields.goldenUnlocked) {

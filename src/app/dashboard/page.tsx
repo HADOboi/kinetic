@@ -15,6 +15,7 @@ import WeightModal from "../../components/dashboard/WeightModal";
 import ResetButton from "../../components/dashboard/ResetButton";
 import { WEEKLY_SCHEDULE } from "../../core/exerciseMatrix";
 import { RoutineType } from "../../core/types";
+import { getUserPhase } from "../roadmap/page";
 
 // Custom browser router to emulate Next.js router in our custom single-page environment
 function useRouter() {
@@ -148,6 +149,7 @@ export default function DashboardPage() {
             <CompletionGrid
               completedDates={completedDates}
               shieldDates={shieldDates}
+              manualShieldCalendar={profile.manualShieldCalendar || {}}
               restDates={restDates}
             />
           </div>
@@ -168,16 +170,8 @@ export default function DashboardPage() {
             {/* Phase info */}
             <div className="bg-[#0C0C12] border border-[#1A1A26] rounded-2xl p-5 shadow-lg">
               <p className="text-[10px] font-mono font-bold text-[#646473] uppercase tracking-wider mb-2.5">Current Phase</p>
-              <p className={`text-sm font-extrabold font-display ${
-                profile.currentPhase === "conditioning"    ? "text-sky-400" :
-                profile.currentPhase === "calibration"    ? "text-amber-500" :
-                "text-emerald-400"
-              }`}>
-                {{
-                  conditioning:    "🌱 Conditioning — weeks 1-2 baseline",
-                  calibration:     "🧪 Calibration — week 3 max testing",
-                  infinite_overload: "⚡ Infinite Overload — feedback driven",
-                }[profile.currentPhase || "conditioning"]}
+              <p className="text-sm font-extrabold font-display text-sky-400">
+                🌱 {getUserPhase(profile)}
               </p>
             </div>
 
