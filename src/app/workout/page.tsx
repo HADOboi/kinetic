@@ -202,7 +202,7 @@ export default function WorkoutPage() {
     }
     if (s >= 730 && prevStreak < 730) return "beast_730";
     if (s === 365)                     return "yearly_complete";
-    if (s % 28 === 0 && s > 0)        return "monthly_complete";
+    if (s % 30 === 0 && s > 0)        return "monthly_complete";
     if (s % 7 === 0 && s > 0) {
       const silverGained = updated.shields.silver > (oldProfile?.shields.silver ?? 0);
       return silverGained ? "shield_silver_convert" : "weekly_complete";
@@ -255,32 +255,32 @@ export default function WorkoutPage() {
   const WarmupPhase = (
     <div className="px-3 py-4 flex flex-col gap-4 select-none">
       <div>
-        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Phase 1</p>
-        <h2 className="text-lg font-black text-white uppercase tracking-wide">Mobility Preparation</h2>
-        <p className="text-xs text-[#A0A0AB] mt-0.5">Neural and Articular joint priming sequence</p>
+        <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-1 font-mono">Phase 1</p>
+        <h2 className="text-xl font-black text-white uppercase tracking-wide">Mobility Preparation</h2>
+        <p className="text-sm text-[#D4D4D8] mt-0.5 font-medium">Neural and Articular joint priming sequence</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {WARMUP_MOVEMENTS.map((m, i) => (
-          <div key={i} className="flex items-center gap-2.5 bg-[#0C0C12] border border-[#1A1A26] rounded-xl p-2.5">
-            <div className="w-5 h-5 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-[9px] font-mono font-bold text-indigo-400">{i + 1}</span>
+          <div key={i} className="flex items-center gap-3 bg-[#0C0C14] border border-[#1E1E2E] rounded-xl p-3">
+            <div className="w-6 h-6 rounded-full bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
+              <span className="text-[10px] font-mono font-bold text-indigo-300">{i + 1}</span>
             </div>
-            <span className="text-xs text-[#A3A3B3] font-medium leading-snug">{m}</span>
+            <span className="text-xs text-[#E4E4E7] font-medium leading-snug">{m}</span>
           </div>
         ))}
       </div>
 
-      <div className="flex items-center gap-2 bg-[#0C0C12]/40 border border-[#1A1A26]/80 rounded-xl px-3 py-2.5">
-        <span className="text-base">💧</span>
-        <p className="text-xs text-[#A0A0AB] leading-snug">
-          <span className="text-sky-400 font-semibold">Pre-Hydrate:</span> Take 4–5 small sips of water now to hydrate and prime energy pathways.
+      <div className="flex items-center gap-3 bg-[#0C0C14] border border-sky-500/30 rounded-xl px-4 py-3">
+        <span className="text-xl flex-shrink-0">💧</span>
+        <p className="text-xs text-[#E4E4E7] leading-snug font-medium">
+          <span className="text-sky-400 font-bold">Pre-Hydrate:</span> Take 4–5 small sips of water now to hydrate and prime energy pathways.
         </p>
       </div>
 
       <button
         onClick={() => setPhase("exercise")}
-        className="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest active:scale-95 transition-all cursor-pointer shadow-[0_4px_16px_rgba(99,102,241,0.25)]"
+        className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm uppercase tracking-widest active:scale-95 transition-all cursor-pointer shadow-[0_4px_20px_rgba(99,102,241,0.3)]"
       >
         Initialize Workout Loop
       </button>
@@ -339,30 +339,30 @@ export default function WorkoutPage() {
   const CooldownPhase = (
     <div className="px-3 py-4 flex flex-col gap-4 select-none">
       <div>
-        <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">Phase 3</p>
-        <h2 className="text-lg font-black text-white uppercase tracking-wide">Structural Decompression</h2>
-        <p className="text-xs text-[#A0A0AB] mt-0.5">Post-exertion muscular restorative stretch</p>
+        <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1 font-mono">Phase 3</p>
+        <h2 className="text-xl font-black text-white uppercase tracking-wide">Structural Decompression</h2>
+        <p className="text-sm text-[#D4D4D8] mt-0.5 font-medium">Post-exertion muscular restorative stretch</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {COOLDOWN_STRETCHES.map((s, i) => (
-          <div key={i} className="flex items-center justify-between bg-[#0C0C12] border border-[#1A1A26] rounded-xl p-2.5">
-            <span className="text-xs text-[#A3A3B3] font-medium truncate mr-1">{s.name}</span>
-            <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/10 flex-shrink-0">{s.duration}</span>
+          <div key={i} className="flex items-center justify-between bg-[#0C0C14] border border-[#1E1E2E] rounded-xl p-3">
+            <span className="text-xs text-[#E4E4E7] font-medium truncate mr-2">{s.name}</span>
+            <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20 flex-shrink-0">{s.duration}</span>
           </div>
         ))}
       </div>
 
-      <div className="flex items-center gap-2 bg-[#0C0C12]/40 border border-[#1A1A26]/80 rounded-xl px-3 py-2.5">
-        <span className="text-base">💧</span>
-        <p className="text-xs text-[#A0A0AB] leading-snug">
-          <span className="text-emerald-400 font-semibold">Rehydrate:</span> Drink a full glass of water over the next 15 minutes to expedite tissue clearing.
+      <div className="flex items-center gap-3 bg-[#0C0C14] border border-emerald-500/30 rounded-xl px-4 py-3">
+        <span className="text-xl flex-shrink-0">💧</span>
+        <p className="text-xs text-[#E4E4E7] leading-snug font-medium">
+          <span className="text-emerald-400 font-bold">Rehydrate:</span> Drink a full glass of water over the next 15 minutes to expedite tissue clearing.
         </p>
       </div>
 
       <button
         onClick={() => setPhase("feedback")}
-        className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest active:scale-95 transition-all cursor-pointer shadow-[0_4px_16px_rgba(16,185,129,0.25)]"
+        className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm uppercase tracking-widest active:scale-95 transition-all cursor-pointer shadow-[0_4px_20px_rgba(16,185,129,0.3)]"
       >
         Verify Session Log Completion
       </button>
@@ -371,51 +371,51 @@ export default function WorkoutPage() {
 
   // FEEDBACK
   const FeedbackPhase = (
-    <div className="px-3 py-6 flex flex-col gap-4 items-center text-center select-none">
+    <div className="px-3 py-6 flex flex-col gap-5 items-center text-center select-none">
       <motion.div
-        className="w-14 h-14 rounded-full bg-emerald-500/10 border-2 border-emerald-500 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+        className="w-16 h-16 rounded-full bg-emerald-500/15 border-2 border-emerald-500 flex items-center justify-center text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
         initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 200 }}
       >
-        <span className="text-2xl">✓</span>
+        <span className="text-3xl">✓</span>
       </motion.div>
 
       <div>
-        <h2 className="text-lg font-black text-white uppercase tracking-wide">Session Verified</h2>
-        <p className="text-xs text-[#A0A0AB] mt-1 max-w-xs">
+        <h2 className="text-xl font-black text-white uppercase tracking-wide">Session Verified</h2>
+        <p className="text-sm text-[#D4D4D8] mt-1 max-w-xs leading-relaxed">
           Your muscular exertion baselines are logged. How did today's structural workload feel overall?
         </p>
       </div>
 
       {isCalibration ? (
-        <div className="w-full bg-[#0C0C12] border border-amber-500/20 rounded-2xl p-4">
-          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">Calibration Complete</p>
-          <p className="text-xs text-[#A3A3B3] leading-relaxed">
+        <div className="w-full bg-[#0C0C14] border border-amber-500/30 rounded-2xl p-5">
+          <p className="text-xs text-amber-400 font-bold uppercase tracking-wider mb-1 font-mono">Calibration Complete</p>
+          <p className="text-sm text-[#D4D4D8] leading-relaxed">
             Week 3 baselines successfully recorded.<br />
             Reps target baseline = max × 0.65<br />
             Time target baseline = max × 0.60
           </p>
           <button
             onClick={() => finalizeWorkout("comfortable")}
-            className="w-full mt-4 py-3 rounded-xl bg-amber-500 text-black font-black text-xs uppercase tracking-wider active:scale-95 transition-all cursor-pointer shadow-[0_4px_12px_rgba(245,158,11,0.25)]"
+            className="w-full mt-4 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider active:scale-95 transition-all cursor-pointer shadow-[0_4px_12px_rgba(245,158,11,0.25)]"
           >
             Save Baselines & Exit
           </button>
         </div>
       ) : (
-        <div className="w-full flex flex-col gap-2 max-w-xs">
+        <div className="w-full flex flex-col gap-2.5 max-w-xs">
           {(
             [
-              { value: "struggling",  emoji: "🔴", label: "Struggling — hold level",  color: "border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/10" },
-              { value: "comfortable", emoji: "🟡", label: "Comfortable — 3-cycle path", color: "border-amber-500/20 bg-amber-500/5 text-amber-400 hover:bg-amber-500/10" },
-              { value: "too_easy",    emoji: "🟢", label: "Too Easy! — level up now",  color: "border-indigo-500/40 bg-indigo-600/90 hover:bg-indigo-600 text-white" },
+              { value: "struggling",  emoji: "🔴", label: "Struggling — hold level",  color: "border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20" },
+              { value: "comfortable", emoji: "🟡", label: "Comfortable — 3-cycle path", color: "border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20" },
+              { value: "too_easy",    emoji: "🟢", label: "Too Easy! — level up now",  color: "border-indigo-500/50 bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg" },
             ] as const
           ).map((opt) => (
             <motion.button
               key={opt.value}
               onClick={() => finalizeWorkout(opt.value)}
-              className={`w-full py-3 rounded-xl border font-bold text-xs uppercase tracking-wider ${opt.color} transition-all cursor-pointer`}
+              className={`w-full py-3.5 px-4 rounded-xl border font-bold text-xs uppercase tracking-wider ${opt.color} transition-all cursor-pointer`}
               whileTap={{ scale: 0.96 }}
             >
               {opt.emoji} {opt.label}

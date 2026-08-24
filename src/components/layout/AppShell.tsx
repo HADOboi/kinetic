@@ -3,8 +3,12 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { KineticProfile } from "../../core/types";
 import { useStreakEngine } from "../../hooks/useStreakEngine";
-import { Map, BarChart3, Flame, Snowflake, Shield, User, Sparkles, LogOut } from "lucide-react";
+import { getAthletePhaseInfo } from "../../core/exerciseMatrix";
+import { Map, BarChart3, Flame, Snowflake, Shield, User, Sparkles, LogOut, X, ShieldAlert } from "lucide-react";
 import KineticLogo from "../KineticLogo";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../../core/firebase";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -19,7 +23,7 @@ export default function AppShell({
   currentPath: propPath,
   onNavigate
 }: AppShellProps) {
-  const { profile: contextProfile, signOut } = useAuth();
+  const { profile: contextProfile, setProfile, signOut } = useAuth();
   const profile = propProfile !== undefined ? propProfile : contextProfile;
 
   const [currentPath, setCurrentPath] = useState(propPath || typeof window !== "undefined" ? window.location.pathname : "/roadmap");
@@ -61,16 +65,61 @@ export default function AppShell({
   const pullLevel = profile?.progressionLevels?.pull?.level ?? 1;
   const legsLevel = profile?.progressionLevels?.legs_core?.level ?? 1;
 
-  const phaseLabel =
-    profile?.currentPhase === "conditioning" ? "Conditioning" :
-    profile?.currentPhase === "calibration" ? "Calibration" :
-    profile?.currentPhase === "infinite_overload" ? "Infinite Overload" :
-    "Conditioning";
+  const athletePhase = profile ? getAthletePhaseInfo(profile) : {
+    name: "Conditioning Phase",
+    badge: "Conditioning · Lv.1",
+    description: "🌱 Joint conditioning & foundational movement",
+    colorClass: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+  };
 
-  const phaseColor =
-    profile?.currentPhase === "conditioning" ? "text-sky-400 bg-sky-500/10 border-sky-500/20" :
-    profile?.currentPhase === "calibration" ? "text-amber-500 bg-amber-500/10 border-amber-500/20" :
-    "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+  const [dismissedShieldAlert, setDismissedShieldAlert] = useState(false);
+
+  // Check if the current shield alert has been dismissed previously
+  const isAlertDismissed = React.useMemo(() => {
+    if (!profile?.userId || !profile?.lastShieldConsumed) return true;
+    if (dismissedShieldAlert) return true;
+    if (profile.dismissedShieldDate === profile.lastShieldConsumed.date) return true;
+    try {
+      const stored = localStorage.getItem(`kinetic_shield_dismissed_${profile.userId}`);
+      if (stored && stored === `${profile.lastShieldConsumed.date}_${profile.lastShieldConsumed.type}`) {
+        return true;
+      }
+    } catch {}
+    return false;
+  }, [profile?.userId, profile?.lastShieldConsumed, profile?.dismissedShieldDate, dismissedShieldAlert]);
+
+  const handleDismissShieldAlert = async () => {
+    setDismissedShieldAlert(true);
+    if (!profile) return;
+    try {
+      const alertKey = profile.lastShieldConsumed
+        ? `${profile.lastShieldConsumed.date}_${profile.lastShieldConsumed.type}`
+        : "dismissed";
+      const consumedDate = profile.lastShieldConsumed?.date || null;
+      try {
+        localStorage.setItem(`kinetic_shield_dismissed_${profile.userId}`, alertKey);
+      } catch {}
+
+      const updated: KineticProfile = {
+        ...profile,
+        lastShieldConsumed: null,
+        dismissedShieldDate: consumedDate,
+      };
+      setProfile(updated);
+
+      if (profile.userId === "demo_athlete") {
+        localStorage.setItem(`profile_${profile.userId}`, JSON.stringify(updated));
+        localStorage.setItem("profile_demo_athlete", JSON.stringify(updated));
+      } else {
+        await updateDoc(doc(db, "kineticProfiles", profile.userId), {
+          lastShieldConsumed: null,
+          dismissedShieldDate: consumedDate,
+        });
+      }
+    } catch (e) {
+      console.error("Failed to dismiss shield alert:", e);
+    }
+  };
 
   const activePathClean = currentPath.split("?")[0].split("#")[0];
 
@@ -120,8 +169,8 @@ export default function AppShell({
             </div>
 
             {/* Training Phase Badge */}
-            <div className={`text-[10px] font-black uppercase tracking-wider border px-2.5 py-1.5 rounded-xl text-center sidebar-phase-badge ${phaseColor}`}>
-              {phaseLabel}
+            <div className={`text-[10px] font-black uppercase tracking-wider border px-2.5 py-1.5 rounded-xl text-center sidebar-phase-badge ${athletePhase.colorClass}`}>
+              {athletePhase.badge}
             </div>
           </div>
 
@@ -240,6 +289,59 @@ export default function AppShell({
 
       {/* ─── MAIN WORKSPACE (Adapts to desktop screen size) ─── */}
       <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden">
+        {/* Shield Consumed Alert Banner */}
+        <AnimatePresence>
+          {profile?.lastShieldConsumed && !isAlertDismissed && (
+            <motion.div
+              initial={{ opacity: 0, y: -15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="sticky top-14 md:top-0 z-40 px-3 sm:px-4 pt-2 pb-1.5 md:max-w-5xl md:mx-auto w-full select-none"
+            >
+              <div className={`p-3 sm:p-4 rounded-2xl border flex items-start gap-2.5 sm:gap-3 shadow-xl backdrop-blur-md ${
+                profile.lastShieldConsumed.type === "golden"
+                  ? "bg-yellow-950/90 border-yellow-500/50 text-yellow-100"
+                  : profile.lastShieldConsumed.type === "silver"
+                  ? "bg-slate-900/95 border-slate-400/50 text-slate-100"
+                  : "bg-amber-950/90 border-amber-600/50 text-amber-100"
+              }`}>
+                <div className={`p-1.5 sm:p-2 rounded-xl flex-shrink-0 mt-0.5 ${
+                  profile.lastShieldConsumed.type === "golden"
+                    ? "bg-yellow-500/20 text-yellow-400"
+                    : profile.lastShieldConsumed.type === "silver"
+                    ? "bg-slate-500/20 text-slate-200"
+                    : "bg-amber-600/20 text-amber-400"
+                }`}>
+                  <Shield size={16} className="sm:w-[18px] sm:h-[18px]" />
+                </div>
+                <div className="flex-1 min-w-0 pr-1">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <span className="text-[10px] sm:text-[11px] font-mono font-black uppercase tracking-wider">
+                      {profile.lastShieldConsumed.type.toUpperCase()} SHIELD DEPLOYED
+                    </span>
+                    <span className="text-[9px] sm:text-[10px] opacity-75 font-mono">
+                      ({profile.lastShieldConsumed.date})
+                    </span>
+                  </div>
+                  <p className="text-[11px] sm:text-xs mt-1 leading-snug sm:leading-relaxed opacity-90 break-words">
+                    {profile.lastShieldConsumed.type === "golden"
+                      ? "Your permanent Golden Shield absorbed your missed workout date and protected your streak!"
+                      : `A ${profile.lastShieldConsumed.type} shield was consumed automatically to protect your unbroken streak during an unlogged workout day.`}
+                  </p>
+                </div>
+                <button
+                  onClick={handleDismissShieldAlert}
+                  className="p-1.5 -mr-1 -mt-0.5 rounded-lg hover:bg-white/10 active:bg-white/20 text-white/70 hover:text-white transition-colors cursor-pointer flex-shrink-0"
+                  title="Dismiss alert"
+                  aria-label="Dismiss alert"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* On Mobile: Center-column simulator width. On PC: Fluid wide layout! */}
         <div className="w-full flex-1 flex flex-col md:max-w-5xl md:mx-auto md:px-8 py-0">
           <div className="w-full max-w-md mx-auto md:max-w-none flex-1 flex flex-col relative">

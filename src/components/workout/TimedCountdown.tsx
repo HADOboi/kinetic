@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { playCountdownBeep } from "../../core/audio";
 
 interface TimedCountdownProps {
   onGo: () => void; // called when "GO!" finishes
@@ -11,8 +12,11 @@ export default function TimedCountdown({ onGo }: TimedCountdownProps) {
 
   useEffect(() => {
     if (count === "GO!") {
+      playCountdownBeep(true);
       const t = setTimeout(onGo, 700);
       return () => clearTimeout(t);
+    } else {
+      playCountdownBeep(false);
     }
     const t = setTimeout(() => {
       setCount((c) => (c === 1 ? "GO!" : (c as number) - 1));

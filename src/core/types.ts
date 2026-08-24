@@ -43,6 +43,8 @@ export interface KineticProfile {
   createdAt: string;
   deferredAnimation?: string | null;
   lastWasRestDay?: boolean;
+  lastShieldConsumed?: { type: ShieldType; date: string } | null;
+  dismissedShieldDate?: string | null;
 }
 
 export interface WorkoutLog {

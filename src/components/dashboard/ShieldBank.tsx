@@ -1,12 +1,39 @@
 "use client";
-import React from "react";
-import { motion } from "framer-motion";
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Calendar, Shield } from "lucide-react";
 import { KineticProfile } from "../../core/types";
+import ScheduleShieldModal from "./ScheduleShieldModal";
 
-export default function ShieldBank({ shields }: { shields: KineticProfile["shields"] }) {
+interface ShieldBankProps {
+  shields?: KineticProfile["shields"];
+  profile?: KineticProfile;
+  onUpdate?: (updated: KineticProfile) => void;
+}
+
+export default function ShieldBank({ shields: propShields, profile, onUpdate }: ShieldBankProps) {
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const shields = profile?.shields || propShields || { bronze: 0, silver: 0, goldenUnlocked: false };
+
+  const scheduledCount = profile?.manualShieldCalendar 
+    ? Object.keys(profile.manualShieldCalendar).length 
+    : 0;
+
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[10px] font-mono font-bold text-[#646473] uppercase tracking-wider">Shield Bank</p>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-mono font-bold text-[#646473] uppercase tracking-wider">Shield Bank</p>
+        {profile && onUpdate && (
+          <button
+            type="button"
+            onClick={() => setShowScheduleModal(true)}
+            className="flex items-center gap-1 text-[10px] font-mono font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+          >
+            <Calendar size={11} />
+            <span>Schedule{scheduledCount > 0 ? ` (${scheduledCount})` : ""}</span>
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         {/* Bronze */}
@@ -60,6 +87,17 @@ export default function ShieldBank({ shields }: { shields: KineticProfile["shiel
           </div>
         </motion.div>
       )}
+
+      {/* Schedule Modal */}
+      <AnimatePresence>
+        {showScheduleModal && profile && onUpdate && (
+          <ScheduleShieldModal
+            profile={profile}
+            onUpdate={onUpdate}
+            onClose={() => setShowScheduleModal(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

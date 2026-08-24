@@ -72,7 +72,7 @@ export function useStreakEngine() {
         if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
           p.shields.bronze += 1;
           if (p.shields.bronze >= 3) {
-            p.shields.bronze = 1;
+            p.shields.bronze -= 3;
             if (p.shields.silver < 5) {
               p.shields.silver += 1;
             } else {
@@ -80,7 +80,7 @@ export function useStreakEngine() {
             }
           }
         }
-        if (p.currentStreak % 28 === 0 && p.currentStreak > 0) {
+        if (p.currentStreak % 30 === 0 && p.currentStreak > 0) {
           if (p.shields.silver < 5) {
             p.shields.silver += 1;
           } else {
@@ -93,25 +93,31 @@ export function useStreakEngine() {
       } else {
         // It's a workout day!
         let absorbed = false;
+        let shieldConsumedType: "bronze" | "silver" | "golden" | null = null;
         
+        // 0. Golden shield is permanent and absorbs any missed day
+        if (p.shields.goldenUnlocked) {
+          absorbed = true;
+          shieldConsumedType = "golden";
+        }
+
         // 1. Check if we are still protected by a previously burned silver shield
-        if (silverProtectedWorkoutDaysLeft > 0) {
+        if (!absorbed && silverProtectedWorkoutDaysLeft > 0) {
           silverProtectedWorkoutDaysLeft -= 1;
           absorbed = true;
+          shieldConsumedType = "silver";
         }
         
         // 2. Check manual shield calendar
         if (!absorbed && p.manualShieldCalendar && p.manualShieldCalendar[checkDate]) {
           const type = p.manualShieldCalendar[checkDate];
-          if (type === "bronze" && p.shields.bronze > 0) {
-            p.shields.bronze -= 1;
+          if (type === "bronze") {
             absorbed = true;
-            delete p.manualShieldCalendar[checkDate];
-          } else if (type === "silver" && p.shields.silver > 0) {
-            p.shields.silver -= 1;
+            shieldConsumedType = "bronze";
+          } else if (type === "silver") {
             silverProtectedWorkoutDaysLeft = 2; // absorbs this day + 2 more workout days
             absorbed = true;
-            delete p.manualShieldCalendar[checkDate];
+            shieldConsumedType = "silver";
           }
         }
         
@@ -119,6 +125,7 @@ export function useStreakEngine() {
         if (!absorbed && p.shields.bronze > 0) {
           p.shields.bronze -= 1;
           absorbed = true;
+          shieldConsumedType = "bronze";
         }
         
         // 4. Auto-burn silver shield
@@ -126,11 +133,20 @@ export function useStreakEngine() {
           p.shields.silver -= 1;
           silverProtectedWorkoutDaysLeft = 2; // absorbs this day + 2 more workout days
           absorbed = true;
+          shieldConsumedType = "silver";
         }
         
         if (absorbed) {
           p.lastCompletedDate = checkDate;
           p.currentScheduleIndex = (scheduleIndex + 1) % 7;
+          if (shieldConsumedType) {
+            p.manualShieldCalendar[checkDate] = shieldConsumedType;
+            const isDismissed = (p.dismissedShieldDate === checkDate) ||
+              (typeof window !== "undefined" && window.localStorage?.getItem(`kinetic_shield_dismissed_${p.userId}`) === `${checkDate}_${shieldConsumedType}`);
+            if (!isDismissed) {
+              p.lastShieldConsumed = { type: shieldConsumedType, date: checkDate };
+            }
+          }
         } else {
           // No shields left — break streak!
           p.currentStreak = 0;
@@ -162,7 +178,7 @@ export function useStreakEngine() {
     if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
       p.shields.bronze += 1;
       if (p.shields.bronze >= 3) {
-        p.shields.bronze = 1;
+        p.shields.bronze -= 3;
         if (p.shields.silver < 5) {
           p.shields.silver += 1;
         } else {
@@ -171,8 +187,8 @@ export function useStreakEngine() {
       }
     }
 
-    // Silver every 28 days
-    if (p.currentStreak % 28 === 0 && p.currentStreak > 0) {
+    // Silver every 30 days (updated from 28 days)
+    if (p.currentStreak % 30 === 0 && p.currentStreak > 0) {
       if (p.shields.silver < 5) {
         p.shields.silver += 1;
       } else {
@@ -322,11 +338,11 @@ export function reconstructProfile(profile: KineticProfile, logs: { date: string
       if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
         p.shields.bronze += 1;
         if (p.shields.bronze >= 3) {
-          p.shields.bronze = 1;
+          p.shields.bronze -= 3;
           if (p.shields.silver < 5) p.shields.silver += 1;
         }
       }
-      if (p.currentStreak % 28 === 0 && p.currentStreak > 0) {
+      if (p.currentStreak % 30 === 0 && p.currentStreak > 0) {
         if (p.shields.silver < 5) p.shields.silver += 1;
       }
       if (p.currentStreak >= 365 && !p.shields.goldenUnlocked) {
@@ -351,11 +367,11 @@ export function reconstructProfile(profile: KineticProfile, logs: { date: string
         if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
           p.shields.bronze += 1;
           if (p.shields.bronze >= 3) {
-            p.shields.bronze = 1;
+            p.shields.bronze -= 3;
             if (p.shields.silver < 5) p.shields.silver += 1;
           }
         }
-        if (p.currentStreak % 28 === 0 && p.currentStreak > 0) {
+        if (p.currentStreak % 30 === 0 && p.currentStreak > 0) {
           if (p.shields.silver < 5) p.shields.silver += 1;
         }
         if (p.currentStreak >= 365 && !p.shields.goldenUnlocked) {
@@ -364,40 +380,55 @@ export function reconstructProfile(profile: KineticProfile, logs: { date: string
       } else {
         // Workout day missed!
         let absorbed = false;
+        let shieldConsumedType: "bronze" | "silver" | "golden" | null = null;
 
-        if (silverProtectedWorkoutDaysLeft > 0) {
+        if (p.shields.goldenUnlocked) {
+          absorbed = true;
+          shieldConsumedType = "golden";
+        }
+
+        if (!absorbed && silverProtectedWorkoutDaysLeft > 0) {
           silverProtectedWorkoutDaysLeft -= 1;
           absorbed = true;
+          shieldConsumedType = "silver";
         }
 
         if (!absorbed && p.manualShieldCalendar && p.manualShieldCalendar[checkDate]) {
           const type = p.manualShieldCalendar[checkDate];
-          if (type === "bronze" && p.shields.bronze > 0) {
-            p.shields.bronze -= 1;
+          if (type === "bronze") {
             absorbed = true;
-            delete p.manualShieldCalendar[checkDate];
-          } else if (type === "silver" && p.shields.silver > 0) {
-            p.shields.silver -= 1;
-            silverProtectedWorkoutDaysLeft = 2;
+            shieldConsumedType = "bronze";
+          } else if (type === "silver") {
+            silverProtectedWorkoutDaysLeft = 2; // absorbs this day + 2 more workout days
             absorbed = true;
-            delete p.manualShieldCalendar[checkDate];
+            shieldConsumedType = "silver";
           }
         }
 
         if (!absorbed && p.shields.bronze > 0) {
           p.shields.bronze -= 1;
           absorbed = true;
+          shieldConsumedType = "bronze";
         }
 
         if (!absorbed && p.shields.silver > 0) {
           p.shields.silver -= 1;
-          silverProtectedWorkoutDaysLeft = 2;
+          silverProtectedWorkoutDaysLeft = 2; // absorbs this day + 2 more workout days
           absorbed = true;
+          shieldConsumedType = "silver";
         }
 
         if (absorbed) {
           p.lastCompletedDate = checkDate;
           p.currentScheduleIndex = (scheduleIndex + 1) % 7;
+          if (shieldConsumedType) {
+            p.manualShieldCalendar[checkDate] = shieldConsumedType;
+            const isDismissed = (p.dismissedShieldDate === checkDate) ||
+              (typeof window !== "undefined" && window.localStorage?.getItem(`kinetic_shield_dismissed_${p.userId}`) === `${checkDate}_${shieldConsumedType}`);
+            if (!isDismissed) {
+              p.lastShieldConsumed = { type: shieldConsumedType, date: checkDate };
+            }
+          }
         } else {
           p.currentStreak = 0;
           p.lastCompletedDate = "";

@@ -44,13 +44,15 @@ export default function WeightModal({ profile, onSave, onSkip }: WeightModalProp
 
   return (
     <motion.div
-      className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
     >
       <motion.div
-        className="w-full max-w-md bg-[#121218] border border-[#2D2D3F] rounded-3xl p-6 flex flex-col gap-5"
-        initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="w-full max-w-sm bg-[#0E0E14] border border-[#242436] rounded-3xl p-6 flex flex-col gap-5 shadow-2xl relative"
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ type: "spring", stiffness: 350, damping: 28 }}
       >
         <div className="text-center">
           <p className="text-lg font-bold text-white">Weekly Complete! 🎉</p>

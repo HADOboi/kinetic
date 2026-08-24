@@ -13,8 +13,9 @@ import ShieldBank from "../../components/dashboard/ShieldBank";
 import EquipmentChest from "../../components/dashboard/EquipmentChest";
 import WeightModal from "../../components/dashboard/WeightModal";
 import ResetButton from "../../components/dashboard/ResetButton";
-import { WEEKLY_SCHEDULE } from "../../core/exerciseMatrix";
+import { WEEKLY_SCHEDULE, getAthletePhaseInfo } from "../../core/exerciseMatrix";
 import { RoutineType } from "../../core/types";
+import { format } from "date-fns";
 
 // Custom browser router to emulate Next.js router in our custom single-page environment
 function useRouter() {
@@ -89,15 +90,64 @@ export default function DashboardPage() {
 
   const streakCount = profile.currentStreak ?? 0;
   const fireState = getFireState(profile);
-  const todayNode  = WEEKLY_SCHEDULE[profile.currentScheduleIndex ?? 0] || WEEKLY_SCHEDULE[0];
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const isCompletedToday = profile.lastCompletedDate === todayStr;
+  const effectiveTodayIndex = isCompletedToday
+    ? (profile.currentScheduleIndex - 1 + 7) % 7
+    : (profile.currentScheduleIndex ?? 0);
+  const todayNode  = WEEKLY_SCHEDULE[effectiveTodayIndex] || WEEKLY_SCHEDULE[0];
   const dailyLabel = todayNode.type === "rest" ? "Rest" : todayNode.label;
   const currentLevel = todayNode.type !== "rest"
     ? profile.progressionLevels[todayNode.type as RoutineType]?.level
     : undefined;
 
-  // Track shield-protected dates & rest dates
+  const athletePhase = getAthletePhaseInfo(profile);
+
+  // Compute shield-protected dates & rest dates
   const shieldDates: string[] = Object.keys(profile.manualShieldCalendar || {});
-  const restDates: string[] = []; // In future pages we can define specific manual rest dates if tracked
+  
+  // Calculate rest dates based on workout logs & weekly cadence
+  const restDates = React.useMemo(() => {
+    const dates: string[] = [];
+    if (!profile.lastCompletedDate && completedDates.length === 0) {
+      // If current day is rest day, include today
+      if (todayNode.type === "rest") {
+        dates.push(new Date().toISOString().slice(0, 10));
+      }
+      return dates;
+    }
+
+    // Trace past completed workout days and infer the corresponding rest days
+    const completedSet = new Set(completedDates);
+    const shieldSet = new Set(shieldDates);
+
+    // If last completed day was a rest day, add today/relevant dates
+    if (todayNode.type === "rest") {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (!completedSet.has(todayStr) && !shieldSet.has(todayStr)) {
+        dates.push(todayStr);
+      }
+    }
+
+    // Also look at all dates in the past 90 days
+    const now = new Date();
+    for (let i = 1; i <= 60; i++) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const ds = d.toISOString().slice(0, 10);
+      if (!completedSet.has(ds) && !shieldSet.has(ds)) {
+        // If it was part of an active streak window, classify rest
+        if (profile.lastCompletedDate && ds <= profile.lastCompletedDate) {
+          // In an unbroken or simulated streak, every 3rd or 7th day is rest
+          const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays <= profile.currentStreak) {
+            dates.push(ds);
+          }
+        }
+      }
+    }
+    return dates;
+  }, [profile, completedDates, shieldDates, todayNode]);
 
   return (
     <AppShell>
@@ -148,6 +198,7 @@ export default function DashboardPage() {
             <CompletionGrid
               completedDates={completedDates}
               shieldDates={shieldDates}
+              shieldUsageMap={profile.manualShieldCalendar || {}}
               restDates={restDates}
             />
           </div>
@@ -155,7 +206,11 @@ export default function DashboardPage() {
           {/* Side Context Block (Right Column) */}
           <div className="flex flex-col gap-6">
             {/* Shield bank */}
-            <ShieldBank shields={profile.shields} />
+            <ShieldBank
+              shields={profile.shields}
+              profile={profile}
+              onUpdate={(updated) => setProfile(updated)}
+            />
 
             {/* Equipment chest */}
             <EquipmentChest
@@ -166,18 +221,18 @@ export default function DashboardPage() {
             />
 
             {/* Phase info */}
-            <div className="bg-[#0C0C12] border border-[#1A1A26] rounded-2xl p-5 shadow-lg">
-              <p className="text-[10px] font-mono font-bold text-[#646473] uppercase tracking-wider mb-2.5">Current Phase</p>
-              <p className={`text-sm font-extrabold font-display ${
-                profile.currentPhase === "conditioning"    ? "text-sky-400" :
-                profile.currentPhase === "calibration"    ? "text-amber-500" :
-                "text-emerald-400"
-              }`}>
-                {{
-                  conditioning:    "🌱 Conditioning — weeks 1-2 baseline",
-                  calibration:     "🧪 Calibration — week 3 max testing",
-                  infinite_overload: "⚡ Infinite Overload — feedback driven",
-                }[profile.currentPhase || "conditioning"]}
+            <div className="bg-[#0C0C12] border border-[#1A1A26] rounded-2xl p-5 shadow-lg flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-mono font-bold text-[#646473] uppercase tracking-wider">Current Phase</p>
+                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${athletePhase.colorClass}`}>
+                  {athletePhase.badge}
+                </span>
+              </div>
+              <p className="text-sm font-extrabold font-display text-white">
+                {athletePhase.name}
+              </p>
+              <p className="text-xs text-[#A3A3B3] leading-relaxed">
+                {athletePhase.description}
               </p>
             </div>
 

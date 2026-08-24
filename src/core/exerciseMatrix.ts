@@ -336,3 +336,103 @@ export function resolveExercises(
     return ex;
   });
 }
+
+export function getAthletePhaseInfo(profile: {
+  currentStreak?: number;
+  currentPhase?: string;
+  progressionLevels?: {
+    push?: { level: number };
+    pull?: { level: number };
+    legs_core?: { level: number };
+  };
+} | null | undefined): {
+  key: string;
+  name: string;
+  badge: string;
+  description: string;
+  colorClass: string;
+} {
+  if (!profile) {
+    return {
+      key: "conditioning",
+      name: "Conditioning Phase",
+      badge: "Conditioning",
+      description: "🌱 Week 1 neuromuscular baseline conditioning",
+      colorClass: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+    };
+  }
+
+  // Week 1 (Day 1-7): Conditioning Phase
+  const streak = profile.currentStreak ?? 0;
+  const isFirstWeek = streak <= 7;
+
+  if (isFirstWeek && (!profile.currentPhase || profile.currentPhase === "conditioning")) {
+    return {
+      key: "conditioning",
+      name: "Conditioning Phase",
+      badge: "Conditioning",
+      description: "🌱 Week 1 baseline — neuromuscular activation & joint prep",
+      colorClass: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+    };
+  }
+
+  // From Week 2 onwards (Day 8+): Phase is strictly based on the athlete's level
+  const pushLv = profile.progressionLevels?.push?.level ?? 1;
+  const pullLv = profile.progressionLevels?.pull?.level ?? 1;
+  const legsLv = profile.progressionLevels?.legs_core?.level ?? 1;
+  const maxTrackLevel = Math.max(pushLv, pullLv, legsLv);
+
+  if (maxTrackLevel >= 10) {
+    return {
+      key: "master",
+      name: "Master Phase",
+      badge: `Master · Lv.${maxTrackLevel}`,
+      description: "👑 Peak mastery & infinite vest load progression",
+      colorClass: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+    };
+  }
+  if (maxTrackLevel >= 9) {
+    return {
+      key: "elite",
+      name: "Elite Phase",
+      badge: `Elite · Lv.${maxTrackLevel}`,
+      description: "⚡ Advanced explosive calisthenics & freestanding mastery",
+      colorClass: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+    };
+  }
+  if (maxTrackLevel >= 7) {
+    return {
+      key: "advanced",
+      name: "Advanced Phase",
+      badge: `Advanced · Lv.${maxTrackLevel}`,
+      description: "🔥 Weighted calisthenics & advanced lever consolidation",
+      colorClass: "text-red-400 bg-red-500/10 border-red-500/20",
+    };
+  }
+  if (maxTrackLevel >= 5) {
+    return {
+      key: "athlete",
+      name: "Athlete Phase",
+      badge: `Athlete · Lv.${maxTrackLevel}`,
+      description: "⚡ Unassisted pull-up, planche entry & unilateral power",
+      colorClass: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    };
+  }
+  if (maxTrackLevel >= 3) {
+    return {
+      key: "builder",
+      name: "Builder Phase",
+      badge: `Builder · Lv.${maxTrackLevel}`,
+      description: "💪 Standard strength volume & lever progression",
+      colorClass: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+    };
+  }
+  return {
+    key: "foundation",
+    name: "Foundation Phase",
+    badge: `Foundation · Lv.${maxTrackLevel}`,
+    description: "🏛️ Joint conditioning & base pressing/pulling mechanics",
+    colorClass: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+  };
+}
+

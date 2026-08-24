@@ -12,13 +12,17 @@ import KineticLogo from "./components/KineticLogo";
 import RoadmapPage from "./app/roadmap/page.tsx";
 import DashboardPage from "./app/dashboard/page.tsx";
 import WorkoutPage from "./app/workout/page.tsx";
+import NotFoundView from "./components/layout/NotFoundView.tsx";
 import { WEEKLY_SCHEDULE } from "./core/exerciseMatrix";
 import { RoutineType } from "./core/types";
+import { useStreakEngine } from "./hooks/useStreakEngine";
+import { format } from "date-fns";
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [signInError, setSignInError] = useState<string | null>(null);
+  const { getFireState } = useStreakEngine();
 
   useEffect(() => {
     const onPopState = () => {
@@ -123,7 +127,12 @@ function AppContent() {
   }
 
   // LOGGED IN STATE - Determine schedule state from profile
-  const todayNode = profile ? (WEEKLY_SCHEDULE[profile.currentScheduleIndex ?? 0] || WEEKLY_SCHEDULE[0]) : WEEKLY_SCHEDULE[0];
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const isCompletedToday = profile?.lastCompletedDate === todayStr;
+  const effectiveTodayIndex = isCompletedToday
+    ? ((profile?.currentScheduleIndex ?? 0) - 1 + 7) % 7
+    : (profile?.currentScheduleIndex ?? 0);
+  const todayNode = profile ? (WEEKLY_SCHEDULE[effectiveTodayIndex] || WEEKLY_SCHEDULE[0]) : WEEKLY_SCHEDULE[0];
   const dailyState = todayNode.type === "rest" ? "Rest" : todayNode.label;
 
   const currentLevel = todayNode.type !== "rest" && profile
@@ -131,7 +140,7 @@ function AppContent() {
     : undefined;
 
   const streakCount = profile?.currentStreak ?? 0;
-  const fireState = streakCount > 0 ? "lit" : "greyed";
+  const fireState = profile ? getFireState(profile) : "greyed";
 
   const cleanPath = currentPath.split("?")[0].split("#")[0];
 
@@ -157,9 +166,7 @@ function AppContent() {
       <main className="flex-1 overflow-y-auto pt-14 pb-16 md:pt-6 md:pb-6">
         {cleanPath === "/roadmap" && <RoadmapPage />}
         {cleanPath !== "/roadmap" && cleanPath !== "/dashboard" && cleanPath !== "/workout" && (
-          <div className="p-8 text-center text-text-secondary font-sans text-sm mt-10">
-            Route Not Found
-          </div>
+          <NotFoundView onNavigate={navigate} />
         )}
       </main>
 
