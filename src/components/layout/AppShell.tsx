@@ -121,7 +121,8 @@ export default function AppShell({
     }
   };
 
-  const activePathClean = currentPath.split("?")[0].split("#")[0];
+  const rawClean = (currentPath || "").split("?")[0].split("#")[0].trim().replace(/\/+$/, "");
+  const activePathClean = rawClean === "" || rawClean === "/index.html" ? "/roadmap" : rawClean;
 
   return (
     <div className="min-h-screen bg-[#040406] flex text-white font-sans antialiased">

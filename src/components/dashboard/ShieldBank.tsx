@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Shield } from "lucide-react";
 import { KineticProfile } from "../../core/types";
 import ScheduleShieldModal from "./ScheduleShieldModal";
+import { format, addDays } from "date-fns";
 
 interface ShieldBankProps {
   shields?: KineticProfile["shields"];
@@ -15,8 +16,23 @@ export default function ShieldBank({ shields: propShields, profile, onUpdate }: 
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const shields = profile?.shields || propShields || { bronze: 0, silver: 0, goldenUnlocked: false };
 
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+
   const scheduledCount = profile?.manualShieldCalendar 
-    ? Object.keys(profile.manualShieldCalendar).length 
+    ? Object.entries(profile.manualShieldCalendar).filter(([dateKey, type]) => {
+        if (type !== "bronze" && type !== "silver") return false;
+        if (type === "bronze") {
+          return dateKey >= todayStr;
+        } else if (type === "silver") {
+          try {
+            const endDate = format(addDays(new Date(dateKey + "T00:00:00"), 2), "yyyy-MM-dd");
+            return endDate >= todayStr;
+          } catch {
+            return dateKey >= todayStr;
+          }
+        }
+        return false;
+      }).length 
     : 0;
 
   return (

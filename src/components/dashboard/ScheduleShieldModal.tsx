@@ -13,6 +13,7 @@ interface ScheduleShieldModalProps {
 }
 
 export default function ScheduleShieldModal({ profile, onUpdate, onClose }: ScheduleShieldModalProps) {
+  const todayStr = format(new Date(), "yyyy-MM-dd");
   const tomorrowStr = format(addDays(new Date(), 1), "yyyy-MM-dd");
   const [selectedType, setSelectedType] = useState<"bronze" | "silver">("bronze");
   const [selectedDate, setSelectedDate] = useState(tomorrowStr);
@@ -23,7 +24,24 @@ export default function ScheduleShieldModal({ profile, onUpdate, onClose }: Sche
   const availableCount = selectedType === "bronze" ? bronzeCount : silverCount;
 
   const existingCalendar = profile.manualShieldCalendar || {};
-  const scheduledDates = Object.entries(existingCalendar).filter(([_, type]) => type === "bronze" || type === "silver");
+  
+  // Filter only upcoming and active scheduled dates (exclude past expired protections)
+  const scheduledDates = Object.entries(existingCalendar)
+    .filter(([dateKey, type]) => {
+      if (type !== "bronze" && type !== "silver") return false;
+      if (type === "bronze") {
+        return dateKey >= todayStr;
+      } else if (type === "silver") {
+        try {
+          const endDate = format(addDays(new Date(dateKey + "T00:00:00"), 2), "yyyy-MM-dd");
+          return endDate >= todayStr;
+        } catch {
+          return dateKey >= todayStr;
+        }
+      }
+      return false;
+    })
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB));
 
   // Calculate coverage preview
   const getCoveragePreview = () => {

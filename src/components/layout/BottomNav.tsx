@@ -7,8 +7,10 @@ interface BottomNavProps {
 }
 
 export default function BottomNav({ currentPath, onNavigate }: BottomNavProps) {
-  const activePath = currentPath || window.location.pathname;
-  const activePathClean = activePath.split("?")[0].split("#")[0];
+  const activePath = currentPath || (typeof window !== "undefined" ? window.location.pathname : "/roadmap");
+  const rawClean = activePath.split("?")[0].split("#")[0].trim().replace(/\/+$/, "");
+  const normalizedActivePath = rawClean === "" || rawClean === "/index.html" ? "/roadmap" : rawClean;
+
   const handleNav = onNavigate || ((path: string) => {
     try {
       window.history.pushState(null, "", path);
@@ -28,14 +30,14 @@ export default function BottomNav({ currentPath, onNavigate }: BottomNavProps) {
         <Map
           size={20}
           className={
-            activePathClean === "/roadmap"
+            normalizedActivePath === "/roadmap"
               ? "text-[#6366F1] glow-indigo"
               : "text-[#646473] hover:text-[#A3A3B3]"
           }
         />
         <span
           className={`text-xs font-medium tracking-wide ${
-            activePathClean === "/roadmap" ? "text-[#6366F1] font-semibold" : "text-[#646473]"
+            normalizedActivePath === "/roadmap" ? "text-[#6366F1] font-semibold" : "text-[#646473]"
           }`}
         >
           Roadmap
@@ -50,14 +52,14 @@ export default function BottomNav({ currentPath, onNavigate }: BottomNavProps) {
         <BarChart3
           size={20}
           className={
-            activePathClean === "/dashboard"
+            normalizedActivePath === "/dashboard"
               ? "text-[#6366F1] glow-indigo"
               : "text-[#646473] hover:text-[#A3A3B3]"
           }
         />
         <span
           className={`text-xs font-medium tracking-wide ${
-            activePathClean === "/dashboard" ? "text-[#6366F1] font-semibold" : "text-[#646473]"
+            normalizedActivePath === "/dashboard" ? "text-[#6366F1] font-semibold" : "text-[#646473]"
           }`}
         >
           Dashboard

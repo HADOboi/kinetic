@@ -9,10 +9,10 @@ import BottomNav from "./components/layout/BottomNav";
 import KineticLogo from "./components/KineticLogo";
 
 // Screens
-import RoadmapPage from "./app/roadmap/page.tsx";
-import DashboardPage from "./app/dashboard/page.tsx";
-import WorkoutPage from "./app/workout/page.tsx";
-import NotFoundView from "./components/layout/NotFoundView.tsx";
+import RoadmapPage from "./app/roadmap/page";
+import DashboardPage from "./app/dashboard/page";
+import WorkoutPage from "./app/workout/page";
+import NotFoundView from "./components/layout/NotFoundView";
 import { WEEKLY_SCHEDULE } from "./core/exerciseMatrix";
 import { RoutineType } from "./core/types";
 import { useStreakEngine } from "./hooks/useStreakEngine";
@@ -39,10 +39,20 @@ function AppContent() {
       console.warn("History pushState blocked by iframe sandbox:", e);
     }
     setCurrentPath(path);
+    window.dispatchEvent(new PopStateEvent("popstate"));
   };
 
+  // Compute clean normalized route path
+  const rawPath = (currentPath || "").split("?")[0].split("#")[0].trim();
+  const strippedPath = rawPath.replace(/\/+$/, "");
+  const normalizedPath =
+    strippedPath === "" || strippedPath === "/index.html"
+      ? "/roadmap"
+      : strippedPath;
+
+  // Auto-sync root to /roadmap when logged in without jarring redirect
   useEffect(() => {
-    if (!loading && user && (currentPath === "/" || currentPath === "")) {
+    if (!loading && user && (currentPath === "/" || currentPath === "" || currentPath === "/index.html")) {
       navigate("/roadmap");
     }
   }, [user, loading, currentPath]);
@@ -102,7 +112,7 @@ function AppContent() {
         <div className="flex flex-col gap-4 w-full max-w-xs items-center">
           <motion.button
             onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center gap-3 bg-[#121218] border border-[#2D2D3F] text-white px-6 py-3.5 rounded-2xl text-sm font-semibold hover:border-accent-indigo hover:bg-[#1a1a2e] transition-all duration-200 cursor-pointer shadow-lg outline-none"
+            className="w-full flex items-center justify-center gap-3 bg-[#121218] border border-[#2D2D3F] text-white px-6 py-3.5 rounded-2xl text-sm font-semibold hover:border-indigo-500 hover:bg-[#1a1a2e] transition-all duration-200 cursor-pointer shadow-lg outline-none"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
@@ -142,18 +152,13 @@ function AppContent() {
   const streakCount = profile?.currentStreak ?? 0;
   const fireState = profile ? getFireState(profile) : "greyed";
 
-  const cleanPath = currentPath.split("?")[0].split("#")[0];
-
-  if (cleanPath === "/dashboard") {
-    return <DashboardPage />;
-  }
-
-  if (cleanPath === "/workout") {
+  // Dedicated workout wizard screen (full immersion)
+  if (normalizedPath === "/workout") {
     return <WorkoutPage />;
   }
 
   return (
-    <AppShell currentPath={currentPath} onNavigate={navigate}>
+    <AppShell currentPath={normalizedPath} onNavigate={navigate}>
       <Header
         dailyState={dailyState}
         currentLevel={currentLevel}
@@ -164,13 +169,14 @@ function AppContent() {
       />
       
       <main className="flex-1 overflow-y-auto pt-14 pb-16 md:pt-6 md:pb-6">
-        {cleanPath === "/roadmap" && <RoadmapPage />}
-        {cleanPath !== "/roadmap" && cleanPath !== "/dashboard" && cleanPath !== "/workout" && (
+        {normalizedPath === "/roadmap" && <RoadmapPage />}
+        {normalizedPath === "/dashboard" && <DashboardPage onNavigate={navigate} />}
+        {normalizedPath !== "/roadmap" && normalizedPath !== "/dashboard" && (
           <NotFoundView onNavigate={navigate} />
         )}
       </main>
 
-      <BottomNav currentPath={currentPath} onNavigate={navigate} />
+      <BottomNav currentPath={normalizedPath} onNavigate={navigate} />
     </AppShell>
   );
 }
