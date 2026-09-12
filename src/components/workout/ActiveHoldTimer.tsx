@@ -25,7 +25,13 @@ export default function ActiveHoldTimer({
   const [target, setTarget] = useState(workingTarget);
   const [isPaused, setIsPaused] = useState(false);
   const [isDone, setIsDone] = useState(false);
+  const [loggedValue, setLoggedValue] = useState<number | null>(null);
   const dingPlayedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   const remaining = Math.max(0, target - elapsed);
   const progressPercent = Math.min(100, (elapsed / target) * 100);
@@ -43,11 +49,9 @@ export default function ActiveHoldTimer({
         dingPlayedRef.current = true;
         playDingSound(0.9);
       }
+      setLoggedValue(target);
       setIsDone(true);
-      const timer = setTimeout(() => {
-        onComplete(target);
-      }, 700);
-      return () => clearTimeout(timer);
+      return;
     }
 
     // Play soft high beep on countdown 3, 2, 1
@@ -60,17 +64,26 @@ export default function ActiveHoldTimer({
     }, 1000);
 
     return () => clearTimeout(interval);
-  }, [elapsed, target, isPaused, isDone, remaining, onComplete]);
+  }, [elapsed, target, isPaused, isDone, remaining]);
+
+  useEffect(() => {
+    if (isDone && loggedValue !== null) {
+      const timer = setTimeout(() => {
+        onCompleteRef.current(loggedValue);
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [isDone, loggedValue]);
 
   const handleFinishEarly = () => {
+    if (isDone) return;
     if (!dingPlayedRef.current) {
       dingPlayedRef.current = true;
       playDingSound(0.85);
     }
+    const val = Math.max(1, elapsed);
+    setLoggedValue(val);
     setIsDone(true);
-    setTimeout(() => {
-      onComplete(Math.max(1, elapsed));
-    }, 400);
   };
 
   const handleAdjustTarget = (delta: number) => {

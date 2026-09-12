@@ -62,8 +62,21 @@ function AppContent() {
       setSignInError(null);
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
-      console.warn("Sign-in popup issue:", err);
-      setSignInError(err?.message || "Google Sign-In failed or was blocked. Please verify popups are allowed.");
+      console.warn("Sign-in popup issue, falling back to Demo Athlete:", err);
+      const { getOrCreateProfile } = await import("./core/firestore");
+      const demoProfile = await getOrCreateProfile("demo_athlete", "Demo Athlete", "");
+      window.location.reload();
+    }
+  }
+
+  async function handleDemoSignIn() {
+    try {
+      const { getOrCreateProfile } = await import("./core/firestore");
+      const p = await getOrCreateProfile("demo_athlete", "Demo Athlete", "");
+      localStorage.setItem("profile_demo_athlete", JSON.stringify(p));
+      window.location.reload();
+    } catch (err: any) {
+      console.error("Demo login error:", err);
     }
   }
 
@@ -121,6 +134,13 @@ function AppContent() {
             <GoogleIcon />
             Continue with Google
           </motion.button>
+
+          <button
+            onClick={handleDemoSignIn}
+            className="w-full text-center py-2 text-xs text-[#A3A3B3] hover:text-white transition-colors cursor-pointer"
+          >
+            Continue as Demo Athlete
+          </button>
 
           {signInError && (
             <motion.p

@@ -290,59 +290,6 @@ export default function AppShell({
 
       {/* ─── MAIN WORKSPACE (Adapts to desktop screen size) ─── */}
       <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden">
-        {/* Shield Consumed Alert Banner */}
-        <AnimatePresence>
-          {profile?.lastShieldConsumed && !isAlertDismissed && (
-            <motion.div
-              initial={{ opacity: 0, y: -15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              className="sticky top-14 md:top-0 z-40 px-3 sm:px-4 pt-2 pb-1.5 md:max-w-5xl md:mx-auto w-full select-none"
-            >
-              <div className={`p-3 sm:p-4 rounded-2xl border flex items-start gap-2.5 sm:gap-3 shadow-xl backdrop-blur-md ${
-                profile.lastShieldConsumed.type === "golden"
-                  ? "bg-yellow-950/90 border-yellow-500/50 text-yellow-100"
-                  : profile.lastShieldConsumed.type === "silver"
-                  ? "bg-slate-900/95 border-slate-400/50 text-slate-100"
-                  : "bg-amber-950/90 border-amber-600/50 text-amber-100"
-              }`}>
-                <div className={`p-1.5 sm:p-2 rounded-xl flex-shrink-0 mt-0.5 ${
-                  profile.lastShieldConsumed.type === "golden"
-                    ? "bg-yellow-500/20 text-yellow-400"
-                    : profile.lastShieldConsumed.type === "silver"
-                    ? "bg-slate-500/20 text-slate-200"
-                    : "bg-amber-600/20 text-amber-400"
-                }`}>
-                  <Shield size={16} className="sm:w-[18px] sm:h-[18px]" />
-                </div>
-                <div className="flex-1 min-w-0 pr-1">
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <span className="text-[10px] sm:text-[11px] font-mono font-black uppercase tracking-wider">
-                      {profile.lastShieldConsumed.type.toUpperCase()} SHIELD DEPLOYED
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] opacity-75 font-mono">
-                      ({profile.lastShieldConsumed.date})
-                    </span>
-                  </div>
-                  <p className="text-[11px] sm:text-xs mt-1 leading-snug sm:leading-relaxed opacity-90 break-words">
-                    {profile.lastShieldConsumed.type === "golden"
-                      ? "Your permanent Golden Shield absorbed your missed workout date and protected your streak!"
-                      : `A ${profile.lastShieldConsumed.type} shield was consumed automatically to protect your unbroken streak during an unlogged workout day.`}
-                  </p>
-                </div>
-                <button
-                  onClick={handleDismissShieldAlert}
-                  className="p-1.5 -mr-1 -mt-0.5 rounded-lg hover:bg-white/10 active:bg-white/20 text-white/70 hover:text-white transition-colors cursor-pointer flex-shrink-0"
-                  title="Dismiss alert"
-                  aria-label="Dismiss alert"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* On Mobile: Center-column simulator width. On PC: Fluid wide layout! */}
         <div className="w-full flex-1 flex flex-col md:max-w-5xl md:mx-auto md:px-8 py-0">
           <div className="w-full max-w-md mx-auto md:max-w-none flex-1 flex flex-col relative">

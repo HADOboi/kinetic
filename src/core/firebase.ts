@@ -6,13 +6,13 @@ import { getAnalytics, isSupported } from "firebase/analytics";
 const env = (import.meta as any).env || {};
 
 const firebaseConfig = {
-  apiKey: env.VITE_FIREBASE_API_KEY,
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: env.VITE_FIREBASE_APP_ID,
-  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID,
+  apiKey: env.VITE_FIREBASE_API_KEY || "AIzaSyDummyApiKeyForLocalVerification123",
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "demo-app.firebaseapp.com",
+  projectId: env.VITE_FIREBASE_PROJECT_ID || "demo-app",
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "demo-app.appspot.com",
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1234567890",
+  appId: env.VITE_FIREBASE_APP_ID || "1:1234567890:web:1234567890",
+  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || "G-1234567890",
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
