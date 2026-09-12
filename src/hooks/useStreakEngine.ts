@@ -62,34 +62,10 @@ export function useStreakEngine() {
       const node = WEEKLY_SCHEDULE[scheduleIndex];
       
       if (node?.type === "rest") {
-        // It's a rest day! Auto-complete it
-        p.currentStreak += 1;
+        // It's a rest day! Rest day freezes streak (does NOT increment currentStreak)
         p.lastCompletedDate = checkDate;
         p.currentScheduleIndex = (scheduleIndex + 1) % 7;
         p.lastWasRestDay = true;
-
-        // Reward logic for reaching milestones on rest day completions
-        if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
-          p.shields.bronze += 1;
-          if (p.shields.bronze >= 3) {
-            p.shields.bronze -= 3;
-            if (p.shields.silver < 5) {
-              p.shields.silver += 1;
-            } else {
-              (p as any)._silverCapTriggered = true;
-            }
-          }
-        }
-        if (p.currentStreak % 30 === 0 && p.currentStreak > 0) {
-          if (p.shields.silver < 5) {
-            p.shields.silver += 1;
-          } else {
-            (p as any)._silverCapTriggered = true;
-          }
-        }
-        if (p.currentStreak >= 365 && !p.shields.goldenUnlocked) {
-          p.shields.goldenUnlocked = true;
-        }
       } else {
         // It's a workout day!
         let absorbed = false;
@@ -137,6 +113,7 @@ export function useStreakEngine() {
         }
         
         if (absorbed) {
+          // Shielded workout day freezes streak (does NOT increment currentStreak)
           p.lastCompletedDate = checkDate;
           p.currentScheduleIndex = (scheduleIndex + 1) % 7;
           if (shieldConsumedType) {
@@ -238,43 +215,10 @@ export function useStreakEngine() {
   }, []);
 
   /**
-   * Absence regression: called on return after long absence.
-   * Mutates progressionLevels.
+   * Absence regression disabled: multi-day breaks no longer trigger regression or conditioning.
    */
   const applyAbsenceRegression = useCallback((profile: KineticProfile): KineticProfile => {
-    if (!profile.lastCompletedDate) return profile;
-    const today = todayStr();
-    const missedDays = getDaysBetweenDates(today, profile.lastCompletedDate);
-
-    if (missedDays < 6) return profile;
-
-    let p = {
-      ...profile,
-      progressionLevels: {
-        push:      { ...profile.progressionLevels.push },
-        pull:      { ...profile.progressionLevels.pull },
-        legs_core: { ...profile.progressionLevels.legs_core },
-      },
-    };
-
-    if (missedDays >= 21) {
-      // Demote all tracks by 1 level (min 1)
-      const demote = (s: typeof p.progressionLevels.push) => ({
-        ...s,
-        level: Math.max(1, s.level - 1),
-        currentCycle: 1,
-        lastFeedback: "struggling" as const,
-      });
-      p.progressionLevels.push      = demote(p.progressionLevels.push);
-      p.progressionLevels.pull      = demote(p.progressionLevels.pull);
-      p.progressionLevels.legs_core = demote(p.progressionLevels.legs_core);
-    } else {
-      // 6–21 days: set lastFeedback to struggling (triggers 0.8× multiplier in workout)
-      p.progressionLevels.push.lastFeedback      = "struggling";
-      p.progressionLevels.pull.lastFeedback      = "struggling";
-      p.progressionLevels.legs_core.lastFeedback = "struggling";
-    }
-    return p;
+    return profile;
   }, []);
 
   return { processMissedDays, completeDay, getFireState, applyAbsenceRegression, reconstructProfile };
@@ -358,25 +302,10 @@ export function reconstructProfile(profile: KineticProfile, logs: { date: string
       const node = WEEKLY_SCHEDULE[scheduleIndex];
 
       if (node?.type === "rest") {
-        // Auto-complete rest day
-        p.currentStreak += 1;
+        // Auto-complete rest day - streak remains frozen
         p.lastCompletedDate = checkDate;
         p.currentScheduleIndex = (scheduleIndex + 1) % 7;
         p.lastWasRestDay = true;
-
-        if (p.currentStreak % 7 === 0 && p.currentStreak > 0) {
-          p.shields.bronze += 1;
-          if (p.shields.bronze >= 3) {
-            p.shields.bronze -= 3;
-            if (p.shields.silver < 5) p.shields.silver += 1;
-          }
-        }
-        if (p.currentStreak % 30 === 0 && p.currentStreak > 0) {
-          if (p.shields.silver < 5) p.shields.silver += 1;
-        }
-        if (p.currentStreak >= 365 && !p.shields.goldenUnlocked) {
-          p.shields.goldenUnlocked = true;
-        }
       } else {
         // Workout day missed!
         let absorbed = false;

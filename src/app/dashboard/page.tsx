@@ -10,8 +10,10 @@ import EquipmentChest from "../../components/dashboard/EquipmentChest";
 import WeightModal from "../../components/dashboard/WeightModal";
 import ResetButton from "../../components/dashboard/ResetButton";
 import { WEEKLY_SCHEDULE, getAthletePhaseInfo } from "../../core/exerciseMatrix";
-import { RoutineType } from "../../core/types";
+import { KineticProfile, RoutineType } from "../../core/types";
 import { format } from "date-fns";
+import { Bell, Shield, X, CheckCircle2 } from "lucide-react";
+import { doc, updateDoc } from "firebase/firestore";
 
 interface DashboardPageProps {
   onNavigate?: (path: string) => void;
@@ -84,6 +86,31 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps = {}) {
 
   const athletePhase = getAthletePhaseInfo(profile);
 
+  const handleDismissNotification = async () => {
+    if (!profile) return;
+    const consumedDate = profile.lastShieldConsumed?.date || null;
+    const updated: KineticProfile = {
+      ...profile,
+      lastShieldConsumed: null,
+      dismissedShieldDate: consumedDate,
+    };
+    setProfile(updated);
+
+    try {
+      if (profile.userId === "demo_athlete") {
+        localStorage.setItem(`profile_${profile.userId}`, JSON.stringify(updated));
+        localStorage.setItem("profile_demo_athlete", JSON.stringify(updated));
+      } else {
+        await updateDoc(doc(db, "kineticProfiles", profile.userId), {
+          lastShieldConsumed: null,
+          dismissedShieldDate: consumedDate,
+        });
+      }
+    } catch (e) {
+      console.error("Failed to dismiss notification:", e);
+    }
+  };
+
   // Compute shield-protected dates & rest dates
   const shieldDates: string[] = Object.keys(profile.manualShieldCalendar || {});
   
@@ -151,6 +178,72 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps = {}) {
             <p className="text-[10px] text-[#646473] font-mono uppercase tracking-wider mt-1">{label}</p>
           </div>
         ))}
+      </div>
+
+      {/* Notifications Section */}
+      <div className="bg-[#0C0C12] border border-[#1A1A26] rounded-2xl p-5 shadow-lg flex flex-col gap-3">
+        <div className="flex items-center justify-between border-b border-[#1A1A26] pb-3">
+          <div className="flex items-center gap-2">
+            <Bell size={16} className="text-indigo-400" />
+            <h2 className="text-sm font-bold font-display text-white uppercase tracking-wider">
+              Notifications & Alerts
+            </h2>
+          </div>
+          {profile.lastShieldConsumed && (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold">
+              1 New Alert
+            </span>
+          )}
+        </div>
+
+        {profile.lastShieldConsumed ? (
+          <div className={`p-4 rounded-xl border flex items-start justify-between gap-3 ${
+            profile.lastShieldConsumed.type === "golden"
+              ? "bg-yellow-950/40 border-yellow-500/30 text-yellow-100"
+              : profile.lastShieldConsumed.type === "silver"
+              ? "bg-slate-900/60 border-slate-400/30 text-slate-100"
+              : "bg-amber-950/40 border-amber-600/30 text-amber-100"
+          }`}>
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-lg flex-shrink-0 mt-0.5 ${
+                profile.lastShieldConsumed.type === "golden"
+                  ? "bg-yellow-500/20 text-yellow-400"
+                  : profile.lastShieldConsumed.type === "silver"
+                  ? "bg-slate-500/20 text-slate-200"
+                  : "bg-amber-600/20 text-amber-400"
+              }`}>
+                <Shield size={18} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider">
+                    {profile.lastShieldConsumed.type} Shield Deployed
+                  </span>
+                  <span className="text-[10px] opacity-70 font-mono">
+                    ({profile.lastShieldConsumed.date})
+                  </span>
+                </div>
+                <p className="text-xs text-[#D4D4D8] leading-relaxed">
+                  {profile.lastShieldConsumed.type === "golden"
+                    ? "Your permanent Golden Shield absorbed your missed workout date and protected your streak."
+                    : `A ${profile.lastShieldConsumed.type} shield was consumed automatically to protect your unbroken streak during an unlogged workout day.`}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleDismissNotification}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer flex-shrink-0"
+              title="Dismiss notification"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 py-2 text-xs text-[#717182] font-mono">
+            <CheckCircle2 size={15} className="text-emerald-500/70" />
+            <span>No pending alerts. All streak protections active and operational.</span>
+          </div>
+        )}
       </div>
 
       {/* Responsive Bento Grid */}

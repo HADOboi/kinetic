@@ -26,6 +26,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check local storage for demo athlete fallback
+    const storedDemo = typeof window !== "undefined" ? localStorage.getItem("profile_demo_athlete") : null;
+    if (storedDemo) {
+      try {
+        const demoProf = JSON.parse(storedDemo);
+        setUser({ uid: "demo_athlete", displayName: "Demo Athlete" } as any);
+        setProfile(demoProf);
+        setLoading(false);
+        return;
+      } catch (e) {}
+    }
+
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {

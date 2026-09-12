@@ -46,13 +46,10 @@ export default function ExerciseCard({
       if (idx === -1) return prev;
       const next = [...prev];
       next[idx] = { done: true, value };
-      const isLast = idx >= exercise.sets - 1;
-      if (!isLast) {
-        setShowRest(true);
-      }
+      setShowRest(true);
       return next;
     });
-  }, [exercise.sets]);
+  }, []);
 
   // Timed exercise active timer
   const startTimedExercise = useCallback(() => {
